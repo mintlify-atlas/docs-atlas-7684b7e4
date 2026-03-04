@@ -1,0 +1,556 @@
+---
+title: "Access Control Lists (ACL)"
+description: "Understanding ARO/ACO concepts, building ACL trees, and managing permissions in Yoneily"
+---
+
+# Access Control Lists (ACL)
+
+The Yoneily system uses CakePHP's built-in ACL (Access Control List) system to manage permissions. ACL provides fine-grained control over who can access which parts of the application.
+
+## ACL Concepts
+
+### ARO (Access Request Object)
+
+AROs represent entities that request access to something - typically Users and Groups.
+
+**ARO Structure**:
+```sql
+CREATE TABLE `aros` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `parent_id` int(10) DEFAULT NULL,
+  `model` varchar(255) DEFAULT '',
+  `foreign_key` int(10) unsigned DEFAULT NULL,
+  `alias` varchar(255) DEFAULT '',
+  `lft` int(10) DEFAULT NULL,
+  `rght` int(10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+);
+```
+
+**ARO Hierarchy Example**:
+```
+├── Group: Administradores (id=1)
+│   ├── User: jose (id=3)
+│   ├── User: yuliet (id=4)
+│   ├── User: emily (id=5)
+│   └── User: admin (id=6)
+```
+
+<Note>
+  The `lft` and `rght` fields implement a Modified Preorder Tree Traversal (MPTT) structure for efficient hierarchical queries.
+</Note>
+
+### ACO (Access Control Object)
+
+ACOs represent things that can be accessed - typically Controllers and their Actions.
+
+**ACO Structure**:
+```sql
+CREATE TABLE `acos` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `parent_id` int(10) DEFAULT NULL,
+  `model` varchar(255) DEFAULT '',
+  `foreign_key` int(10) unsigned DEFAULT NULL,
+  `alias` varchar(255) DEFAULT '',
+  `lft` int(10) DEFAULT NULL,
+  `rght` int(10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+);
+```
+
+**ACO Hierarchy Example**:
+```
+controllers
+├── Users
+│   ├── index
+│   ├── add
+│   ├── edit
+│   ├── delete
+│   ├── edit_pass
+│   ├── permission
+│   └── ajax_load
+├── Galleries
+│   ├── index
+│   ├── view
+│   ├── add
+│   ├── edit
+│   └── delete
+└── Groups
+    ├── index
+    ├── add
+    ├── edit
+    └── delete
+```
+
+### ARO-ACO Permissions
+
+The `aros_acos` table links AROs to ACOs with specific permissions:
+
+```sql
+CREATE TABLE `aros_acos` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `aro_id` int(10) unsigned NOT NULL,
+  `aco_id` int(10) unsigned NOT NULL,
+  `_create` char(2) NOT NULL DEFAULT '0',
+  `_read` char(2) NOT NULL DEFAULT '0',
+  `_update` char(2) NOT NULL DEFAULT '0',
+  `_delete` char(2) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+);
+```
+
+**Permission Values**:
+- `1` = Explicitly allowed
+- `0` = Explicitly denied
+- `-1` = Inherit from parent
+
+## Building the ACL Tree
+
+### Automatic ACL Generation
+
+The `build_acl()` function automatically generates the ACO tree based on your application's controllers and actions.
+
+<Warning>
+  The `build_acl()` function only runs when debug mode is enabled. Set `Configure::write('debug', 1)` or higher.
+</Warning>
+
+### Build ACL Function
+
+From `app/app_controller.php`:
+
+```php
+function build_acl() {
+    if (!Configure::read('debug')) {
+        return $this->_stop();
+    }
+    
+    $log = array();
+    $aco =& $this->Acl->Aco;
+    $root = $aco->node('controllers');
+    
+    // Create root controllers node if it doesn't exist
+    if (!$root) {
+        $aco->create(array(
+            'parent_id' => null, 
+            'model' => null, 
+            'alias' => 'controllers'
+        ));
+        $root = $aco->save();
+        $root['Aco']['id'] = $aco->id;
+        $log[] = 'Created Aco node for controllers';
+    } else {
+        $root = $root[0];
+    }
+    
+    App::import('Core', 'File');
+    $Controllers = Configure::listObjects('controller');
+    $appIndex = array_search('App', $Controllers);
+    if ($appIndex !== false) {
+        unset($Controllers[$appIndex]);
+    }
+    
+    $baseMethods = get_class_methods('Controller');
+    $baseMethods[] = 'buildAcl';
+    $Plugins = $this->_getPluginControllerNames();
+    $Controllers = array_merge($Controllers, $Plugins);
+    
+    // Loop through each controller
+    foreach ($Controllers as $ctrlName) {
+        $methods = $this->_getClassMethods(
+            $this->_getPluginControllerPath($ctrlName)
+        );
+        
+        // Handle plugins
+        if ($this->_isPlugin($ctrlName)) {
+            $pluginNode = $aco->node(
+                'controllers/'.$this->_getPluginName($ctrlName)
+            );
+            if (!$pluginNode) {
+                $aco->create(array(
+                    'parent_id' => $root['Aco']['id'], 
+                    'model' => null, 
+                    'alias' => $this->_getPluginName($ctrlName)
+                ));
+                $pluginNode = $aco->save();
+                $pluginNode['Aco']['id'] = $aco->id;
+                $log[] = 'Created Aco node for ' . 
+                         $this->_getPluginName($ctrlName) . ' Plugin';
+            }
+        }
+        
+        // Find or create controller node
+        $controllerNode = $aco->node('controllers/'.$ctrlName);
+        if (!$controllerNode) {
+            if ($this->_isPlugin($ctrlName)) {
+                $pluginNode = $aco->node(
+                    'controllers/' . $this->_getPluginName($ctrlName)
+                );
+                $aco->create(array(
+                    'parent_id' => $pluginNode['0']['Aco']['id'], 
+                    'model' => null, 
+                    'alias' => $this->_getPluginControllerName($ctrlName)
+                ));
+                $controllerNode = $aco->save();
+                $controllerNode['Aco']['id'] = $aco->id;
+                $log[] = 'Created Aco node for ' . 
+                         $this->_getPluginControllerName($ctrlName);
+            } else {
+                $aco->create(array(
+                    'parent_id' => $root['Aco']['id'], 
+                    'model' => null, 
+                    'alias' => $ctrlName
+                ));
+                $controllerNode = $aco->save();
+                $controllerNode['Aco']['id'] = $aco->id;
+                $log[] = 'Created Aco node for ' . $ctrlName;
+            }
+        } else {
+            $controllerNode = $controllerNode[0];
+        }
+        
+        // Create method nodes (actions)
+        foreach ($methods as $k => $method) {
+            // Skip private methods
+            if (strpos($method, '_', 0) === 0) {
+                unset($methods[$k]);
+                continue;
+            }
+            // Skip base controller methods
+            if (in_array($method, $baseMethods)) {
+                unset($methods[$k]);
+                continue;
+            }
+            
+            $methodNode = $aco->node(
+                'controllers/'.$ctrlName.'/'.$method
+            );
+            if (!$methodNode) {
+                $aco->create(array(
+                    'parent_id' => $controllerNode['Aco']['id'], 
+                    'model' => null, 
+                    'alias' => $method
+                ));
+                $methodNode = $aco->save();
+                $log[] = 'Created Aco node for '. $method;
+            }
+        }
+    }
+    
+    if(count($log) > 0) {
+        debug($log);
+    }
+}
+```
+
+### Running build_acl
+
+<Steps>
+  <Step title="Enable Debug Mode">
+    Edit `app/config/core.php`:
+    ```php
+    Configure::write('debug', 2);
+    ```
+  </Step>
+
+  <Step title="Access Build ACL URL">
+    Navigate to:
+    ```
+    /pages/build_acl
+    ```
+    or call the function from any controller action
+  </Step>
+
+  <Step title="Review Output">
+    The function will display a log of all ACO nodes created
+  </Step>
+
+  <Step title="Disable Debug Mode">
+    After building ACL, set debug back to 0 in production:
+    ```php
+    Configure::write('debug', 0);
+    ```
+  </Step>
+</Steps>
+
+## Managing Permissions
+
+### Group-Level Permissions
+
+Group permissions are inherited by all users in that group.
+
+**Granting Full Access to Administrators**:
+
+```php
+$group =& $this->User->Group;
+$group->id = 1; // Administrators group
+$this->Acl->allow($group, 'controllers');
+```
+
+This grants administrators access to all controllers and actions.
+
+### User-Level Permissions
+
+User-specific permissions override group permissions.
+
+**Allowing a Specific Action**:
+
+```php
+$this->Acl->allow(
+    array('model' => 'User', 'foreign_key' => $user_id),
+    'controllers/Users/edit'
+);
+```
+
+**Denying a Specific Action**:
+
+```php
+$this->Acl->deny(
+    array('model' => 'User', 'foreign_key' => $user_id),
+    'controllers/Users/delete'
+);
+```
+
+### Checking Permissions
+
+**Check if User Has Permission**:
+
+```php
+$hasAccess = $this->Acl->check(
+    array('model' => 'User', 'foreign_key' => $user_id),
+    'controllers/Users/edit'
+);
+
+if ($hasAccess) {
+    // User can edit
+} else {
+    // User cannot edit
+}
+```
+
+## Permission Inheritance
+
+### Hierarchical Permission Model
+
+ACL uses a tree structure where permissions flow from parent to child:
+
+```
+Group: Administradores
+  Permission: Allow ALL
+  ├── User: jose
+  │   └── Inherits: Allow ALL from group
+  ├── User: yuliet
+  │   └── Inherits: Allow ALL from group
+  │   └── Override: Deny /Users/delete
+  └── User: emily
+      └── Inherits: Allow ALL from group
+```
+
+<Note>
+  Child permissions override parent permissions. A user with an explicit deny will be denied even if their group has allow.
+</Note>
+
+### Permission Resolution Order
+
+1. **Check user-specific permission** (aros_acos entry for user)
+2. **Check group permission** (aros_acos entry for user's group)
+3. **Check parent group permissions** (if groups are nested)
+4. **Default to deny** (if no permission is found)
+
+## ACL Configuration
+
+From `app/config/core.php`:
+
+```php
+Configure::write('Acl.classname', 'DbAcl');
+Configure::write('Acl.database', 'default');
+```
+
+**ACL Types**:
+- **DbAcl**: Database-based ACL (used in Yoneily)
+- **IniAcl**: INI file-based ACL
+- **PhpAcl**: PHP array-based ACL
+
+## Common ACL Operations
+
+### Grant Administrator Full Access
+
+```php
+// In a controller or shell
+$group =& $this->User->Group;
+$group->id = 1;
+$this->Acl->allow($group, 'controllers');
+```
+
+### Create User ARO
+
+```php
+// After creating a user
+$aro = new Aro();
+$aro->create();
+
+// Find user's group ARO
+$parentAro = $aro->findByForeignKeyAndModel(
+    $user['User']['groups_idgrupos'], 
+    'Group'
+);
+
+$aro->save(array(
+    'model' => 'User',
+    'foreign_key' => $user['User']['id_usuario'],
+    'parent_id' => $parentAro['Aro']['id'],
+    'alias' => $user['User']['username']
+));
+```
+
+### Create Group ARO
+
+```php
+$aro = new Aro();
+$aro->create();
+$aro->save(array(
+    'model' => 'Group',
+    'foreign_key' => $group['Group']['idgrupos'],
+    'parent_id' => null,
+    'alias' => $group['Group']['name_grupos']
+));
+```
+
+### Grant Specific Permissions
+
+```php
+// Allow group to manage galleries
+$group =& $this->User->Group;
+$group->id = 2;
+$this->Acl->deny($group, 'controllers');
+$this->Acl->allow($group, 'controllers/Galleries');
+$this->Acl->allow($group, 'controllers/Galleries/index');
+$this->Acl->allow($group, 'controllers/Galleries/view');
+$this->Acl->allow($group, 'controllers/Galleries/add');
+$this->Acl->allow($group, 'controllers/Galleries/edit');
+```
+
+## Using ACL in Controllers
+
+### Authorization Check
+
+From `app/app_controller.php`:
+
+```php
+function isAuthorized() {
+    return true; // Implement your authorization logic here
+}
+
+function beforeFilter() {
+    parent::beforeFilter();
+    
+    $this->Auth->authorize = 'controller';
+    // The isAuthorized() method will be called
+}
+```
+
+### Advanced Authorization
+
+```php
+function isAuthorized() {
+    // Get current user
+    $user = $this->Auth->user();
+    
+    // Check specific permission
+    $controller = $this->params['controller'];
+    $action = $this->params['action'];
+    
+    return $this->Acl->check(
+        array('model' => 'User', 'foreign_key' => $user['id_usuario']),
+        'controllers/' . Inflector::camelize($controller) . '/' . $action
+    );
+}
+```
+
+## Troubleshooting ACL
+
+### Common Issues
+
+**Issue**: Users cannot access anything
+- Check that ARO entries exist for users and groups
+- Verify permissions are set in aros_acos table
+- Ensure ACO tree is properly built
+- Check Auth configuration in app_controller.php
+
+**Issue**: Permissions not working as expected
+- Review permission inheritance chain
+- Check for explicit deny overriding allow
+- Verify controller and action names match ACO aliases exactly (case-sensitive)
+- Clear cache: `app/tmp/cache/`
+
+**Issue**: build_acl() not creating nodes
+- Enable debug mode: `Configure::write('debug', 2)`
+- Check that controllers follow CakePHP naming conventions
+- Verify file permissions on app/tmp directory
+
+### Debugging ACL
+
+**View Current Permissions**:
+
+```php
+// Check what a user can access
+$user_id = 2;
+App::import('Component', 'Acl');
+$acl = new AclComponent();
+
+$aco = ClassRegistry::init('Aco');
+$acos = $aco->find('all');
+
+foreach ($acos as $aco) {
+    $path = $aco['Aco']['alias'];
+    $canAccess = $acl->check(
+        array('model' => 'User', 'foreign_key' => $user_id),
+        $path
+    );
+    echo $path . ': ' . ($canAccess ? 'ALLOW' : 'DENY') . "\n";
+}
+```
+
+**View ARO Tree**:
+
+```php
+App::import('Model', 'Aro');
+$aro = new Aro();
+$tree = $aro->find('threaded');
+debug($tree);
+```
+
+**View ACO Tree**:
+
+```php
+App::import('Model', 'Aco');
+$aco = new Aco();
+$tree = $aco->find('threaded');
+debug($tree);
+```
+
+## Best Practices
+
+### ACL Structure
+1. Keep ACO tree shallow (max 3-4 levels)
+2. Use descriptive aliases for ACOs
+3. Create groups for common permission sets
+4. Document custom permissions
+
+### Permission Management
+1. Set permissions at group level when possible
+2. Use user-level permissions only for exceptions
+3. Deny by default, explicitly allow access
+4. Regularly audit permissions
+5. Test permissions after changes
+
+### Performance
+1. Cache ACL checks when possible
+2. Minimize database queries by checking at controller level
+3. Use MPTT structure efficiently
+4. Consider denormalizing for high-traffic actions
+
+## Related Documentation
+
+- [User Management](/admin/users) - Creating and managing users
+- [Database Schema](/admin/database) - Understanding ACL tables
+- [Initial Setup](/admin/setup) - ACL configuration settings

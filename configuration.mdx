@@ -1,0 +1,351 @@
+---
+title: Configuration
+description: Configure database connections, security settings, routing, and application preferences for the Yoneily system
+---
+
+## Configuration files
+
+All configuration files are located in `app/config/`. The main configuration files are:
+
+- `database.php` - Database connection settings
+- `core.php` - Core application settings
+- `routes.php` - URL routing configuration
+- `bootstrap.php` - Application bootstrap and custom paths
+- `acl.ini.php` - Access control configuration
+
+## Database configuration
+
+### Database connection
+
+Edit `app/config/database.php` to configure your database connection:
+
+```php
+<?php
+class DATABASE_CONFIG {
+    var $default = array(
+        'driver' => 'mysql',
+        'persistent' => false,
+        'host' => 'localhost',
+        'login' => 'root',
+        'password' => '1234',
+        'database' => 'magdaleno',
+        'prefix' => '',
+        'encoding' => 'utf8',
+    );
+}
+?>
+```
+
+### Configuration parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|----------|
+| `driver` | Database driver (mysql, mysqli, postgres) | `mysql` |
+| `persistent` | Use persistent connections | `false` |
+| `host` | Database server hostname | `localhost` |
+| `login` | Database username | `root` |
+| `password` | Database password | - |
+| `database` | Database name | `magdaleno` |
+| `prefix` | Table prefix (if any) | `''` |
+| `encoding` | Character encoding | `utf8` |
+
+<Warning>
+Change the default database credentials before deploying to production. Never use `root` with a weak password in production environments.
+</Warning>
+
+## Core configuration
+
+The file `app/config/core.php` contains essential application settings.
+
+### Debug level
+
+Control error display and debugging output:
+
+```php
+Configure::write('debug', 0);
+```
+
+**Debug levels**:
+- `0` - Production mode: No errors shown, flash messages redirect
+- `1` - Development mode: Errors and warnings shown, caches refreshed
+- `2` - Full debug: All errors, warnings, and SQL queries displayed
+
+<Info>
+Always set `debug` to `0` in production to prevent exposing sensitive system information.
+</Info>
+
+### Logging
+
+Enable error logging even in production mode:
+
+```php
+Configure::write('log', true);
+```
+
+Logs are written to `app/tmp/logs/`. You can configure specific error levels:
+
+```php
+// Log only errors and warnings
+Configure::write('log', E_ERROR | E_WARNING);
+
+// Log everything except notices
+Configure::write('log', E_ALL ^ E_NOTICE);
+```
+
+### Character encoding
+
+Set application-wide character encoding:
+
+```php
+Configure::write('App.encoding', 'UTF-8');
+```
+
+### Routing prefixes
+
+The system uses custom routing prefixes for backend administration:
+
+```php
+Configure::write('Routing.prefixes', array('bcknaciones'));
+```
+
+This enables routes like `/bcknaciones/controller/action` for administrative functions. Access these methods by prefixing controller actions with `bcknaciones_`:
+
+```php
+// In your controller
+function bcknaciones_index() {
+    // Admin index page
+}
+```
+
+<Note>
+The prefix `bcknaciones` appears to be specific to this implementation. You can add additional prefixes like `'admin'` or `'manager'` as needed.
+</Note>
+
+### Session configuration
+
+Configure session handling:
+
+```php
+// Session handler: 'php', 'cake', or 'database'
+Configure::write('Session.save', 'php');
+
+// Session cookie name
+Configure::write('Session.cookie', 'CAKEPHP');
+
+// Session timeout in minutes
+Configure::write('Session.timeout', '120');
+
+// Auto-start sessions
+Configure::write('Session.start', true);
+
+// Check user agent in sessions
+Configure::write('Session.checkAgent', true);
+```
+
+### Security settings
+
+Critical security configurations:
+
+```php
+// Security level: 'high', 'medium', or 'low'
+Configure::write('Security.level', 'medium');
+
+// Security salt for hashing
+Configure::write('Security.salt', 'PYhG93b0qyJfIxfs2guVoUubWwvniR2G0FgaC9m');
+
+// Cipher seed for encryption (digits only)
+Configure::write('Security.cipherSeed', '7485712659625147843639846751');
+```
+
+**Security levels affect session timeouts**:
+- `high` - Session timeout × 10 (20 minutes with default timeout)
+- `medium` - Session timeout × 100 (200 minutes with default timeout)
+- `low` - Session timeout × 300 (600 minutes with default timeout)
+
+<Warning>
+**IMPORTANT**: Change both `Security.salt` and `Security.cipherSeed` to unique random values before deploying to production. These are used for password hashing and data encryption.
+
+Generate new values using:
+```bash
+# Generate a random salt (40 characters)
+php -r "echo substr(str_shuffle('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'), 0, 40);"
+
+# Generate a random cipher seed (29 digits)
+php -r "echo substr(str_shuffle('0123456789012345678901234567890123456789'), 0, 29);"
+```
+</Warning>
+
+### Cache configuration
+
+The system uses file-based caching by default:
+
+```php
+Cache::config('default', array('engine' => 'File'));
+```
+
+For better performance in production, consider using APC, Memcache, or Redis.
+
+### Access Control Lists (ACL)
+
+ACL configuration for permission management:
+
+```php
+Configure::write('Acl.classname', 'DbAcl');
+Configure::write('Acl.database', 'default');
+```
+
+This enables database-driven ACL using the `acos` and `aros` tables.
+
+## Routing configuration
+
+Custom URL routes are defined in `app/config/routes.php`.
+
+### Default routes
+
+The system defines several custom routes:
+
+```php
+// Home page
+Router::connect('/', array('controller'=>'users', 'action'=>'index'));
+
+// Public pages
+Router::connect('/quienes/*', array('controller'=>'pages', 'action'=>'quienes'));
+Router::connect('/contactanos/*', array('controller'=>'pages', 'action'=>'contactanos'));
+Router::connect('/mision/*', array('controller'=>'pages', 'action'=>'mision'));
+Router::connect('/productos/*', array('controller'=>'pages', 'action'=>'productos'));
+Router::connect('/promociones/*', array('controller'=>'pages', 'action'=>'promociones'));
+
+// User registration and complaints
+Router::connect('/add/*', array('controller'=>'registers', 'action'=>'add'));
+Router::connect('/misreclamos/*', array('controller'=>'ventas', 'action'=>'misreclamos'));
+```
+
+### Adding custom routes
+
+Add new routes before the default CakePHP routes:
+
+```php
+// Custom route example
+Router::connect('/complaints', array(
+    'controller' => 'denuncias',
+    'action' => 'index'
+));
+
+// Route with parameters
+Router::connect('/complaint/:id', array(
+    'controller' => 'denuncias',
+    'action' => 'view'
+), array(
+    'id' => '[0-9]+'
+));
+```
+
+<Info>
+Routes are evaluated in order. Place more specific routes before general ones to ensure they match correctly.
+</Info>
+
+## Environment-specific configuration
+
+For different environments (development, staging, production), create separate configuration files or use environment variables:
+
+### Option 1: Multiple database configs
+
+```php
+class DATABASE_CONFIG {
+    var $default = array(
+        'driver' => 'mysql',
+        'host' => 'localhost',
+        // ... default/development settings
+    );
+
+    var $production = array(
+        'driver' => 'mysql',
+        'host' => 'production-db-server',
+        // ... production settings
+    );
+}
+```
+
+Switch between configs in your model:
+
+```php
+var $useDbConfig = 'production';
+```
+
+### Option 2: Environment detection
+
+In `app/config/core.php`:
+
+```php
+if (isset($_SERVER['SERVER_NAME']) && $_SERVER['SERVER_NAME'] == 'localhost') {
+    Configure::write('debug', 2);
+} else {
+    Configure::write('debug', 0);
+}
+```
+
+## File upload configuration
+
+The system stores uploaded files in `app/webroot/files/`. Ensure this directory is writable:
+
+```bash
+chmod -R 777 app/webroot/files
+```
+
+For production, use more restrictive permissions:
+
+```bash
+chown -R www-data:www-data app/webroot/files
+chmod -R 755 app/webroot/files
+```
+
+## Performance optimization
+
+### Disable debug mode
+
+```php
+Configure::write('debug', 0);
+```
+
+### Enable caching
+
+```php
+Configure::write('Cache.check', true);
+```
+
+### Use persistent connections
+
+In `app/config/database.php`:
+
+```php
+'persistent' => true,
+```
+
+<Warning>
+Persistent database connections can cause issues with connection limits on high-traffic sites. Test thoroughly before enabling in production.
+</Warning>
+
+## Configuration checklist
+
+Before deploying to production:
+
+- [ ] Set `debug` to `0` in `core.php:36`
+- [ ] Change `Security.salt` to a unique random value
+- [ ] Change `Security.cipherSeed` to a unique random value
+- [ ] Update database credentials in `database.php`
+- [ ] Set appropriate `Security.level` (recommended: `medium` or `high`)
+- [ ] Configure proper file permissions on `tmp/` and `webroot/files/`
+- [ ] Enable logging with appropriate error levels
+- [ ] Review and customize routing rules
+- [ ] Test ACL permissions thoroughly
+- [ ] Configure session timeout appropriately
+
+## Next steps
+
+With configuration complete, you can:
+
+- Set up user accounts and permissions using the ACL system
+- Customize controllers and views for your specific needs
+- Configure email settings for notifications
+- Implement backup procedures for database and uploaded files
+- Set up monitoring and error alerting

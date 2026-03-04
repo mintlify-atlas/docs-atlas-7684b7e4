@@ -1,0 +1,410 @@
+---
+title: 'Galleries Controller'
+description: 'API reference for the Galleries controller that manages product galleries, images, and inventory in the Yoneily e-commerce system'
+---
+
+## Overview
+
+The `GalleriesController` handles product gallery management including creating, editing, and displaying product images. It integrates image processing using the SimpleImage library to generate thumbnails and resized versions. The controller supports inventory tracking and business-specific product filtering.
+
+**Models Used**: `Gallery`, `Archivo`, `Category`, `Locale`
+
+**Helpers**: `Html`, `Form`, `Javascript`
+
+**External Libraries**: `SimpleImage.php` (vendor library for image processing)
+
+## Image Processing
+
+The controller automatically generates two image versions for each uploaded gallery image:
+
+1. **Thumbnails**: 124x124px (stored in `/files/galeria/thumbnails/`)
+2. **Normal**: 600x480px (stored in `/files/galeria/normal/`)
+3. **Original**: Full size (stored in `/files/galeria/otras/`)
+
+## Public Actions
+
+### index()
+
+Lists all galleries/products with pagination.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**Behavior**:
+- If user has `locale_id_local` in session, filters galleries by that location
+- Otherwise shows all galleries
+- Paginated with 10 items per page
+- Ordered by creation date descending
+
+**View Variables**:
+- `galleries`: Paginated gallery records
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/galleries_controller.php:9
+
+```php
+if(!empty($user)){
+    $this->paginate = array(
+        'conditions'=>array('Gallery.locale_id_local'=>$user),
+        'limit' => 10,
+        'order'=> 'fechacre_galeria DESC'
+    );
+}
+```
+
+---
+
+### view($id)
+
+Views a single gallery/product.
+
+<ParamField path="id" type="integer" required>
+  Gallery ID
+</ParamField>
+
+**Returns**: Redirects to index if invalid ID
+
+**View Variables**:
+- `gallery`: Gallery record
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/galleries_controller.php:21
+
+---
+
+### add()
+
+Creates a new gallery/product with image upload and processing.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['Gallery']" type="array" required>
+  Gallery data including:
+  - locale_id_local: Business name (converted to ID)
+  - nombre_galeria: Gallery name
+  - descripcion_galeria: Description
+  - precio: Price
+  - cantidad: Quantity available
+  - thumbnails: Uploaded image file
+</ParamField>
+
+**View Variables**:
+- `empresa`: Business name (if user has locale_id_local)
+- `users`: User list
+- `archivos`: File list
+
+**Behavior**:
+1. Validates business exists and is active (status = 1)
+2. Converts business name to locale ID
+3. Sets initial inventory values:
+   - `cantidad_existente` = cantidad
+   - `prod_vendidos` = 0
+4. Saves gallery record
+5. Processes uploaded image:
+   - Creates 124x124 thumbnail
+   - Creates 600x480 normal size
+   - Maintains aspect ratio
+6. Shows success/error flash message
+
+**Image Processing**:
+```php
+$image = new SimpleImage();
+$image->load($original_file_path);
+if($image->getWidth() > 124){
+    $image->resizeToWidth(124);
+}
+if($image->getHeight() > 124){
+    $image->resizeToHeight(124);
+}
+$image->save($conversion);
+```
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/galleries_controller.php:29
+
+---
+
+### edit($id)
+
+Edits an existing gallery/product.
+
+<ParamField path="id" type="integer" required>
+  Gallery ID to edit
+</ParamField>
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['Gallery']" type="array">
+  Updated gallery data (same structure as add)
+</ParamField>
+
+**Behavior**:
+- Validates gallery ID
+- If no POST data, loads existing gallery data
+- If POST data:
+  1. Converts business name to locale ID
+  2. Updates inventory values
+  3. Saves gallery record
+  4. Reprocesses images (thumbnail and normal sizes)
+- Redirects to index on success
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/galleries_controller.php:100
+
+---
+
+### delete($id)
+
+Deletes a gallery/product and all associated records.
+
+<ParamField path="id" type="integer" required>
+  Gallery ID to delete
+</ParamField>
+
+**Behavior**:
+- Uses deleteAll() to remove gallery
+- Shows flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/galleries_controller.php:164
+
+```php
+if ($this->Gallery->deleteAll("Gallery.id_galeria=".$id)) {
+    $this->Session->setFlash(__('Gallery deleted', true));
+    $this->redirect(array('action'=>'index'));
+}
+```
+
+---
+
+### deleteimg($id, $idfile)
+
+Deletes a specific image file associated with a gallery.
+
+<ParamField path="id" type="integer" required>
+  Gallery ID
+</ParamField>
+
+<ParamField path="idfile" type="integer" required>
+  File/Image ID to delete
+</ParamField>
+
+**Behavior**:
+- Uses raw SQL query with INNER JOINs
+- Deletes from archivos_galleries and archivos tables
+- Shows success/error flash message
+- Redirects to index
+
+**SQL Query**:
+```php
+DELETE FROM archivos_galleries, archivos 
+USING archivos_galleries 
+INNER JOIN archivos ON archivos_galleries.files_id_file=archivos.id_file 
+INNER JOIN galleries ON archivos_galleries.galerias_id_galeria=galleries.id_galeria 
+WHERE galleries.id_galeria = $id AND archivos.id_file = $idfile
+```
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/galleries_controller.php:177
+
+---
+
+### desactiva($id)
+
+Deactivates/unpublishes a gallery.
+
+<ParamField path="id" type="integer" required>
+  Gallery ID
+</ParamField>
+
+**Behavior**:
+- Sets `Gallery.publicar` to 0 (unpublished)
+- Shows flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/galleries_controller.php:193
+
+```php
+$this->Gallery->updateAll(
+    array('Gallery.publicar' => '0'), 
+    array('Gallery.id_galeria' => $id)
+)
+```
+
+---
+
+### activa($id)
+
+Activates/publishes a gallery.
+
+<ParamField path="id" type="integer" required>
+  Gallery ID
+</ParamField>
+
+**Behavior**:
+- Sets `Gallery.publicar` to 1 (published)
+- Shows flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/galleries_controller.php:208
+
+---
+
+### verlocal()
+
+AJAX autocomplete endpoint for searching business locations.
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+<ParamField query="term" type="string" required>
+  Search term for business name
+</ParamField>
+
+**Returns**: JSON array of businesses
+
+**Response Format**:
+```json
+[
+    {
+        "id": 123,
+        "value": "Business Name 1"
+    },
+    {
+        "id": 456,
+        "value": "Business Name 2"
+    }
+]
+```
+
+**Behavior**:
+- Searches Locale table with LIKE query
+- Filters by active status (status = 1)
+- Returns matching business names and IDs
+
+**View Variables**:
+- `local`: Array of business objects
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/galleries_controller.php:223
+
+```php
+$locales = $this->Locale->find('all', array(
+    'fields'=>array('Locale.nombre_empresa','Locale.id_local'),
+    'conditions'=>array(
+        'Locale.nombre_empresa LIKE'=>'%'.$frase.'%',
+        'Locale.status ='=>1
+    )
+));
+```
+
+## Usage Examples
+
+### Creating a New Gallery
+
+```php
+// POST to /galleries/add
+$data = [
+    'Gallery' => [
+        'locale_id_local' => 'Tienda Example', // Business name
+        'nombre_galeria' => 'Product Name',
+        'descripcion_galeria' => 'Product description here',
+        'precio' => 29.99,
+        'cantidad' => 100,
+        'thumbnails' => [/* uploaded file data */]
+    ]
+];
+```
+
+### Autocomplete Business Search
+
+```javascript
+// jQuery autocomplete example
+$('#business_search').autocomplete({
+    source: '/galleries/verlocal',
+    minLength: 2,
+    select: function(event, ui) {
+        $('#business_id').val(ui.item.id);
+        $('#business_name').val(ui.item.value);
+    }
+});
+```
+
+### Publishing/Unpublishing
+
+```php
+// Publish a gallery
+GET /galleries/activa/123
+
+// Unpublish a gallery
+GET /galleries/desactiva/123
+```
+
+## Image Processing Details
+
+### Thumbnail Generation
+
+The controller creates thumbnails with these specifications:
+- **Max width**: 124px
+- **Max height**: 124px
+- **Maintains aspect ratio**: Yes
+- **Storage path**: `/webroot/files/galeria/thumbnails/`
+
+### Normal Size Generation
+
+Normal-sized images for display:
+- **Max width**: 600px
+- **Max height**: 480px
+- **Maintains aspect ratio**: Yes
+- **Storage path**: `/webroot/files/galeria/normal/`
+
+### Image Processing Flow
+
+1. Original image uploaded to `/files/galeria/otras/`
+2. SimpleImage library loads original
+3. Resize to thumbnail dimensions if needed
+4. Save thumbnail to thumbnails directory
+5. Reload original for normal size
+6. Resize to normal dimensions if needed
+7. Save normal size to normal directory
+
+## Database Structure
+
+The controller works with the `galleries` table:
+- `id_galeria`: Primary key
+- `nombre_galeria`: Product name
+- `descripcion_galeria`: Product description
+- `precio`: Price
+- `cantidad`: Original quantity
+- `cantidad_existente`: Current stock
+- `prod_vendidos`: Number sold
+- `thumbnails`: Image filename
+- `locale_id_local`: Business location ID
+- `publicar`: Published status (0=unpublished, 1=published)
+- `fechacre_galeria`: Creation date
+- `user_id`: Creator user ID
+
+## Inventory Management
+
+When a gallery is created or edited:
+- `cantidad_existente` is set to the initial `cantidad`
+- `prod_vendidos` is initialized to 0
+- These values are updated elsewhere (e.g., Ventas controller) when sales occur

@@ -1,0 +1,411 @@
+---
+title: Venue Management
+description: Manage business locations with contact details, images, and access control
+---
+
+# Venue Management
+
+Venue Management is the foundation of the Yoneily platform, allowing administrators to register and manage business locations that sell products and run promotions. Each venue has its own staff, inventory, and operational details.
+
+## Overview
+
+Venues (also called "locales") represent physical or virtual business locations within the Yoneily ecosystem. Each venue operates semi-independently with its own products, promotions, and staff.
+
+<CardGroup cols={2}>
+  <Card title="Business Registration" icon="store">
+    Complete business profiles with legal and contact information
+  </Card>
+  <Card title="Access Control" icon="key">
+    Unique access codes for staff registration
+  </Card>
+  <Card title="Location Details" icon="map-location-dot">
+    Address, contact info, and location images
+  </Card>
+  <Card title="Banking Information" icon="building-columns">
+    Payment account details for transactions
+  </Card>
+</CardGroup>
+
+## Adding a Venue
+
+### Business Information
+
+To register a new venue:
+
+1. Navigate to Venues > Add New Venue
+2. Fill in required business details:
+   - **Business Name** (`nombre_empresa`) - Official company name
+   - **Tax ID** (`rif`) - Unique business identifier
+   - **Business Description** (`descripcion`) - What the venue offers
+   - **Address** (`direccion`) - Physical location
+3. Add contact information:
+   - Mobile phone (`telefono_cel`)
+   - Additional contact details
+4. Upload venue images:
+   - Business logo or storefront
+   - Location map or interior photo
+5. Save the venue
+
+<Note>
+  The Tax ID (RIF) must be unique - the system prevents duplicate registrations using the same business identifier.
+</Note>
+
+### Manager Information
+
+Each venue requires a designated manager:
+
+- **First Name** (`encargado_nombre`)
+- **Last Name** (`encargado_apellido`)
+- **ID Number** (`encargado_cedula`) - Must be numeric
+
+The manager serves as the primary contact and may have administrative access to the venue's operations.
+
+### Banking Details
+
+For payment processing and settlements:
+
+#### Primary Account (Required)
+- **Account Number** (`n_cuenta_uno`) - Numeric only
+- **Account Description** (`descripcion_n_cuenta_uno`) - Bank name, account type
+
+#### Secondary Account (Optional)
+- **Account Number** (`n_cuenta_dos`)
+- **Account Description** (`descripcion_n_cuenta_dos`)
+
+Multiple accounts allow for:
+- Backup payment methods
+- Different accounts for different purposes
+- Business and personal account separation
+
+<Info>
+  Account numbers are stored securely and used for automated payment processing and settlement reports.
+</Info>
+
+### Access Code System
+
+When you create a venue, the system automatically generates a unique 6-character access code:
+
+**Code Generation:**
+1. MD5 hash of alphabet string
+2. Random starting position
+3. Extract 6 characters
+4. Stored with venue record
+
+**Purpose:**
+- Controls who can register as venue staff
+- Shared only with authorized employees
+- Links staff accounts to correct venue
+- Prevents unauthorized access
+
+<Note>
+  Keep access codes confidential - anyone with the code can register as staff for that venue.
+</Note>
+
+## Venue Images
+
+Each venue can have two images:
+
+### 1. Business Logo/Storefront (`nombre_file`)
+
+**Optimized Versions Created:**
+- **Thumbnail (96x72px)**: List views, search results
+  - Stored in: `/files/locales/thumbnails/`
+- **Standard (600x480px)**: Detail pages, profiles
+  - Stored in: `/files/locales/slider/`
+- **Original**: Backup and high-quality needs
+  - Stored in: `/files/locales/otras/`
+
+### 2. Location Map/Interior (`ubicacion_file`)
+
+**Optimization:**
+- Resized to 600x480px maximum
+- Stored in: `/files/locales/slider/`
+- Used for: Location pages, venue details
+
+Both images are automatically processed during venue creation using the SimpleImage library.
+
+## Managing Venues
+
+### Viewing Venue List
+
+The venue directory shows:
+- All registered venues
+- Business names and locations
+- Active/inactive status
+- Manager information
+- Quick action buttons
+
+**Sorting:** By status (active venues first)
+**Pagination:** 10 venues per page
+
+### Editing Venue Information
+
+To update a venue:
+
+1. Click Edit on the venue listing
+2. Modify any venue details
+3. Update contact information
+4. Change banking details if needed
+5. Save changes
+
+**What Can Be Edited:**
+- Business name and description
+- Manager information
+- Contact details
+- Banking information
+- Address
+
+**What Cannot Be Changed:**
+- Tax ID (RIF) - used for duplicate detection
+- Access code - generated at creation
+- Creation date
+
+<Note>
+  The system validates that Tax IDs remain unique even during edits - you cannot change to an RIF that's already registered.
+</Note>
+
+## Venue Status Management
+
+### Active Status (`status = 1`)
+
+Active venues:
+- Visible in venue searches
+- Staff can log in and manage content
+- Products and promotions are live
+- Customers can browse and purchase
+- Appears in autocomplete searches
+
+### Inactive Status (`status = 0`)
+
+Inactive venues:
+- Hidden from public view
+- Staff cannot access venue features
+- Products and promotions not displayed
+- All data preserved
+- Can be reactivated anytime
+
+### When to Deactivate
+
+<AccordionGroup>
+  <Accordion title="Temporary Closure">
+    - Renovations or repairs
+    - Seasonal closures
+    - Staff shortages
+    - Inventory restocking
+  </Accordion>
+  
+  <Accordion title="Administrative Issues">
+    - Payment processing problems
+    - Compliance violations
+    - Contract disputes
+    - Policy violations
+  </Accordion>
+  
+  <Accordion title="Business Changes">
+    - Ownership transfer in progress
+    - Rebranding or reorganization
+    - Location moving
+    - Business model changes
+  </Accordion>
+</AccordionGroup>
+
+<Info>
+  Deactivating a venue doesn't delete any data - it's a safe way to temporarily pause operations while preserving all historical information.
+</Info>
+
+## Venue-Based Access Control
+
+The venue system integrates with user management:
+
+### Staff Association
+
+Users can be assigned to venues:
+- **Venue Staff**: Limited to one venue
+- **Managers**: May access multiple venues
+- **Administrators**: Access all venues
+
+### Access Filtering
+
+Venue association controls what staff can see:
+
+**Products:**
+- Venue staff see only their venue's products
+- Can add/edit products for their venue only
+
+**Promotions:**
+- Filtered by venue assignment
+- Can manage only their venue's campaigns
+
+**Complaints:**
+- See complaints about their venue
+- Respond to their venue's customer issues
+
+**Sales & Inventory:**
+- Access only their venue's transaction data
+- Inventory counts for their location only
+
+<Note>
+  This venue-based filtering ensures data privacy and prevents staff from accessing competitors' information.
+</Note>
+
+## Venue Search & Selection
+
+Throughout the system, venue selection uses autocomplete:
+
+### Search Functionality
+
+**How it works:**
+1. User types partial business name
+2. System searches `nombre_empresa` field
+3. Returns matching active venues
+4. User selects from results
+5. Venue ID automatically assigned
+
+**Search Features:**
+- Partial name matching (LIKE query)
+- Active venues only (`status = 1`)
+- Returns ID and business name
+- Fast, AJAX-powered results
+
+**Used in:**
+- Product creation/editing
+- Promotion management
+- Staff registration
+- Report generation
+
+## Deleting Venues
+
+To permanently remove a venue:
+
+1. Navigate to venue listing
+2. Click Delete
+3. Confirm deletion
+
+**Deleted Data:**
+- Venue record
+- Business information
+- Image file references
+- Access code
+
+**Important Considerations:**
+- Products and promotions linked to this venue may become orphaned
+- Staff accounts lose venue association
+- Historical sales data preserved
+- Complaints remain for audit purposes
+
+<Note>
+  Deletion is permanent and cannot be undone. Consider deactivating instead of deleting unless absolutely necessary.
+</Note>
+
+## PDF Reports
+
+Generate venue documentation:
+
+### Individual Venue Report
+- Complete business profile
+- Manager information
+- Contact details
+- Banking information
+- Current status
+
+### Complete Venue Directory
+- All venues in one PDF
+- Sortable by various criteria
+- Export for offline access
+- Useful for administrative review
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Initial Setup">
+    - Verify all business details before saving
+    - Double-check Tax ID for accuracy
+    - Upload high-quality images
+    - Set up both account numbers if possible
+    - Securely share access code with manager
+    - Test staff registration with access code
+  </Accordion>
+  
+  <Accordion title="Ongoing Management">
+    - Keep contact information current
+    - Update banking details when accounts change
+    - Monitor venue status regularly
+    - Review associated products and promotions
+    - Track staff access and permissions
+    - Respond promptly to venue-related complaints
+  </Accordion>
+  
+  <Accordion title="Security">
+    - Protect access codes like passwords
+    - Regenerate codes if compromised
+    - Review staff accounts periodically
+    - Deactivate venues when necessary
+    - Monitor for suspicious activity
+  </Accordion>
+  
+  <Accordion title="Data Quality">
+    - Use consistent naming conventions
+    - Provide complete address information
+    - Include descriptive business descriptions
+    - Keep manager information accurate
+    - Update images when business changes
+  </Accordion>
+</AccordionGroup>
+
+## Technical Details
+
+### Database Fields
+
+**Core Business Info:**
+- `id_local` - Unique venue ID (primary key)
+- `nombre_empresa` - Business name
+- `rif` - Tax ID (unique constraint)
+- `descripcion` - Business description
+- `direccion` - Physical address
+- `codigo` - Auto-generated access code
+
+**Contact Information:**
+- `telefono_cel` - Mobile phone (numeric)
+- `correo` - Email address
+
+**Manager Details:**
+- `encargado_nombre` - Manager first name
+- `encargado_apellido` - Manager last name
+- `encargado_cedula` - Manager ID number
+
+**Banking:**
+- `n_cuenta_uno` - Primary account (numeric)
+- `descripcion_n_cuenta_uno` - Primary account details
+- `n_cuenta_dos` - Secondary account
+- `descripcion_n_cuenta_dos` - Secondary account details
+
+**Images:**
+- `nombre_file` - Logo/storefront filename
+- `ubicacion_file` - Location/map filename
+
+**Status:**
+- `status` - Active (1) or Inactive (0)
+
+### Validation Rules
+
+**Required Fields:**
+- Business name
+- Tax ID (RIF)
+- Manager first and last name
+- Manager ID number
+- Mobile phone
+- Primary account number
+- Primary account description
+- Address
+
+**Numeric Fields:**
+- Manager ID number
+- Mobile phone
+- Account numbers
+
+**Unique Constraints:**
+- Tax ID (RIF) - prevents duplicate registrations
+
+<Info>
+  All validation is enforced at the model level using CakePHP's validation system, ensuring data integrity across the application.
+</Info>

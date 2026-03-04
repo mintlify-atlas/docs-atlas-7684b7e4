@@ -1,0 +1,511 @@
+---
+title: 'Submitting Complaints'
+description: 'Complete guide for users to submit and track complaints and reports in Yoneily'
+icon: 'file-circle-exclamation'
+---
+
+## Overview
+
+Yoneily provides a comprehensive complaint and report management system (denuncias) that allows customers to submit issues, track their status, and receive responses from vendors and administrators. This guide walks you through the entire complaint submission and management process.
+
+## Types of Complaints
+
+The system handles two main types of complaints:
+
+<CardGroup cols={2}>
+  <Card title="Product Complaints" icon="box">
+    Issues related to specific products from the gallery, such as quality problems, incorrect items, or defects.
+  </Card>
+  
+  <Card title="Promotion Complaints" icon="tag">
+    Complaints about promotional offers, such as misleading advertising, unavailable promotions, or incorrect pricing.
+  </Card>
+</CardGroup>
+
+## Submitting a Product Complaint
+
+Customers can submit complaints about products they've purchased or encountered issues with.
+
+<Steps>
+  <Step title="Access the Complaint Form">
+    Navigate to the complaint submission page. This is typically available from the product detail page or main menu.
+  </Step>
+  
+  <Step title="Fill in Your Information">
+    Provide your contact details and customer information:
+    - Full name
+    - Email address
+    - Phone number (if required)
+    - Location/store where issue occurred
+  </Step>
+  
+  <Step title="Describe the Issue">
+    Write a clear, detailed description of your complaint:
+    - What product is involved?
+    - What went wrong?
+    - When did the issue occur?
+    - What resolution are you seeking?
+  </Step>
+  
+  <Step title="Select the Product">
+    Choose the specific product from the gallery that your complaint relates to. This helps route your complaint to the right location and vendor.
+  </Step>
+  
+  <Step title="Submit the Complaint">
+    Review your information and click submit. You'll see a confirmation message that your complaint has been registered.
+  </Step>
+</Steps>
+
+### Product Complaint Submission Code
+
+```php
+// From denuncias_controller.php:86-99
+function denunciar() {
+    if (!empty($this->data)) {
+        $fecha = date('d-m-Y');
+        $this->data['Denuncia']['fecha'] = $fecha;
+        
+        if ($this->Denuncia->save($this->data)) {
+            $this->redirect(array('action' => 'fin_denunciar'));
+        }
+    }
+}
+
+function fin_denunciar() {
+    // Display confirmation page
+}
+```
+
+<Note>
+  The system automatically timestamps your complaint with the current date when submitted. You don't need to manually enter the submission date.
+</Note>
+
+## Submitting a Promotion Complaint
+
+For issues related to promotional campaigns or special offers:
+
+<Steps>
+  <Step title="Access Promotion Complaint Form">
+    Navigate to the promotion-specific complaint submission page (denunciar_promo).
+  </Step>
+  
+  <Step title="Identify the Promotion">
+    Select or describe the specific promotion you're complaining about:
+    - Promotion name
+    - Promotion date/period
+    - Where you saw the promotion
+  </Step>
+  
+  <Step title="Detail Your Concern">
+    Explain the issue with the promotion:
+    - What was advertised?
+    - What actually happened?
+    - How does it differ from what was promised?
+  </Step>
+  
+  <Step title="Provide Evidence">
+    If possible, reference any supporting information:
+    - Advertisement details
+    - Receipt or order numbers
+    - Screenshots or photos
+  </Step>
+  
+  <Step title="Submit">
+    Submit your complaint and wait for the confirmation page.
+  </Step>
+</Steps>
+
+```php
+// From denuncias_controller.php:100-113
+function denunciar_promo() {
+    if (!empty($this->data)) {
+        $fecha = date('d-m-Y');
+        $this->data['Denuncia']['fecha'] = $fecha;
+        
+        if ($this->Denuncia->save($this->data)) {
+            $this->redirect(array('action' => 'fin_denunciar'));
+        }
+    }
+}
+```
+
+## Viewing Complaints (Admin/Vendor View)
+
+Vendors and administrators can view and manage complaints submitted to their locations.
+
+### Accessing Your Complaints
+
+<Steps>
+  <Step title="Log In">
+    Log in with your vendor or administrator credentials.
+  </Step>
+  
+  <Step title="Navigate to Denuncias">
+    Go to the Denuncias (Complaints) section from the main menu.
+  </Step>
+  
+  <Step title="View Complaint List">
+    You'll see a paginated list of complaints. The system shows:
+    - 10 complaints per page
+    - Most recent complaints first
+    - Only unresolved complaints (resp = 0) by default
+  </Step>
+</Steps>
+
+### Location-Filtered Complaints
+
+```php
+// From denuncias_controller.php:17-28
+function index() {
+    $user = $this->Session->read('Auth.User.locale_id_local');
+    
+    if(!empty($user)) {
+        // Vendor: See only complaints for their location
+        $this->paginate = array(
+            'conditions' => array(
+                'Denuncia.locale_id_local' => $user,
+                'Denuncia.resp =' => '0'
+            ),
+            'limit' => 10,
+            'order' => 'fecha DESC'
+        );
+    } else {
+        // Admin: See all complaints
+        $this->paginate = array(
+            'conditions' => array('Denuncia.resp =' => '0'),
+            'limit' => 10,
+            'order' => 'fecha DESC'
+        );
+    }
+    
+    $this->set('reclamos', $this->paginate('Denuncia'));
+}
+```
+
+**Filtering logic**:
+- **Vendors**: Only see complaints for their assigned location (`locale_id_local`)
+- **Admins**: See all complaints from all locations
+- **Status**: By default, only unresolved complaints are shown
+
+## Responding to Complaints
+
+Vendors and administrators can respond to customer complaints to resolve issues.
+
+### Creating a Response
+
+<Steps>
+  <Step title="Select Complaint">
+    From the complaints list, click on the complaint you want to respond to.
+  </Step>
+  
+  <Step title="Review Details">
+    Read the customer's complaint thoroughly:
+    - Customer information
+    - Product or promotion involved
+    - Issue description
+    - Submission date
+  </Step>
+  
+  <Step title="Compose Response">
+    Write your response addressing the customer's concerns:
+    - Acknowledge the issue
+    - Explain what happened
+    - Describe the resolution
+    - Provide any additional information needed
+  </Step>
+  
+  <Step title="Submit Response">
+    Submit your response. The system will:
+    - Record your response with timestamp
+    - Mark the original complaint as resolved (status = 1)
+    - Link your response to the original complaint
+    - Notify the customer (if email system is configured)
+  </Step>
+</Steps>
+
+### Response Registration Code
+
+```php
+// From denuncias_controller.php:217-258 (simplified)
+function registro_denuncia() {
+    if (!empty($this->data)) {
+        $usuario = $this->data['Denuncia']['usuario'];
+        $id_respuesta = $this->data['Denuncia']['id_respuesta'];
+        
+        // Get original complaint details
+        $cliente = $this->Denuncia->find('all', array(
+            'conditions' => array('id_denuncia' => $id_respuesta)
+        ));
+        $id_cliente = $cliente[0]['Denuncia']['register_idregistro'];
+        
+        // Get vendor information
+        $vendedor = $this->User->find('all', array(
+            'conditions' => array('id_usuario' => $usuario)
+        ));
+        $nombre = $vendedor[0]['User']['perfil_usuario'];
+        
+        // Prepare response data
+        $this->data['Denuncia']['nombre'] = $nombre;
+        $this->data['Denuncia']['resp'] = $usuario;
+        $this->data['Denuncia']['status'] = 0;
+        $this->data['Denuncia']['register_idregistro'] = $id_cliente;
+        
+        // Save response
+        if ($this->Denuncia->save($this->data)) {
+            // Mark original complaint as resolved
+            $this->Denuncia->updateAll(
+                array('Denuncia.status' => '1'),
+                array('Denuncia.id_denuncia' => $id_respuesta)
+            );
+            
+            $this->Session->setFlash(
+                'Los datos han sido guardados con exito.'
+            );
+            $this->redirect(array('action' => 'index'));
+        }
+    }
+}
+```
+
+### Response Data Structure
+
+When creating a response, the system tracks:
+
+| Field | Purpose |
+|-------|--------|
+| `nombre` | Name of the responding vendor/admin |
+| `resp` | User ID of responder (0 for initial complaint) |
+| `status` | 0 = new response, 1 = resolved |
+| `register_idregistro` | Links response to original customer |
+| `galeria_id_galeria` | Product involved (if applicable) |
+| `promocion_id_promo` | Promotion involved (if applicable) |
+| `locale_id_local` | Location where issue occurred |
+| `fecha` | Date of submission |
+
+## Viewing Complaint Responses (Customer View)
+
+Customers can check the status and responses to their complaints.
+
+<Steps>
+  <Step title="Access Your Complaints">
+    Navigate to "My Complaints" or "Mis Reclamos" section.
+  </Step>
+  
+  <Step title="View Complaint History">
+    See a list of all complaints you've submitted, with their current status.
+  </Step>
+  
+  <Step title="Read Responses">
+    Click on a complaint to see detailed information and any responses from vendors or administrators.
+  </Step>
+  
+  <Step title="Follow-Up (Optional)">
+    If needed, you can submit a follow-up complaint or response to continue the conversation.
+  </Step>
+</Steps>
+
+## Complaint Status Indicators
+
+Understand what different status values mean:
+
+<AccordionGroup>
+  <Accordion title="Status: 0 (Open/Pending)" icon="clock">
+    The complaint has been submitted but not yet resolved. Waiting for vendor or admin response.
+    
+    **What to do**:
+    - Be patient while the vendor reviews your complaint
+    - Check back periodically for updates
+    - Most complaints are addressed within 1-3 business days
+  </Accordion>
+  
+  <Accordion title="Status: 1 (Resolved)" icon="circle-check">
+    A response has been submitted and the complaint is marked as resolved.
+    
+    **What to do**:
+    - Read the response from the vendor
+    - If satisfied, no further action needed
+    - If issue persists, you can submit a new complaint referencing the original
+  </Accordion>
+  
+  <Accordion title="Resp: 0 (Original Complaint)" icon="file">
+    This is an original complaint from a customer, not a response.
+  </Accordion>
+  
+  <Accordion title="Resp: [User ID] (Response)" icon="reply">
+    This entry is a response from a vendor (user ID shown in resp field).
+  </Accordion>
+</AccordionGroup>
+
+## Complaint Management Operations
+
+### Deleting Complaints
+
+Administrators can delete complaints if needed:
+
+```php
+// From denuncias_controller.php:157-161
+function delete($id) {
+    $this->Denuncia->delete($id);
+    $this->Session->setFlash(
+        'El registro se ha eliminado con exito.'
+    );
+    $this->redirect(array('action' => 'index'));
+}
+```
+
+<Warning>
+  Deleting complaints permanently removes them from the system. Only delete spam or duplicate complaints. For resolved issues, use the status field instead.
+</Warning>
+
+### Viewing Complaint Details
+
+```php
+// From denuncias_controller.php:209-216
+function responder_denuncia($id = null) {
+    $info = $this->Denuncia->find('all', array(
+        'conditions' => array('id_denuncia' => $id)
+    ));
+    $this->set('info', $info);
+}
+```
+
+This function retrieves all details about a specific complaint for the response form.
+
+## Integration with Products
+
+Complaints can be linked to specific products from the gallery system.
+
+### Product Consultation
+
+```php
+// From denuncias_controller.php:67-85
+function consulta($producto, $usuario, $local) {
+    if (!empty($producto) && !empty($usuario) && !empty($local)) {
+        // Check if product exists and has inventory
+        $galeria = $this->Gallery->find('all', array(
+            'conditions' => array(
+                'id_galeria' => $producto,
+                'cantidad_existente >' => 0
+            )
+        ));
+        
+        // Check if customer already complained about this product
+        $cliente = $this->Venta->find('all', array(
+            'conditions' => array(
+                'register_idregistro =' => $usuario,
+                'galeria_id_galeria =' => $producto,
+                'locale_id_local =' => $local
+            )
+        ));
+        
+        if(empty($cliente)) {
+            if(!empty($galeria)) {
+                echo 3; // Product available, no previous complaint
+            } else {
+                echo 2; // Product out of stock
+            }
+        } else {
+            echo 4; // Already complained about this product
+        }
+    }
+}
+```
+
+This function helps validate:
+- Product exists
+- Product has inventory
+- Customer hasn't already filed a complaint about this product
+
+## Promotion Complaint Details
+
+For promotion-related complaints, additional tracking is available:
+
+```php
+// From denuncias_controller.php:303-309
+function detallemensajepromo($fecha, $url, $id_page) {
+    if($this->Denuncia->updateAll(
+        array('Denuncia.status' => '1'),
+        array('Denuncia.id_denuncia' => $id_page)
+    )) {
+        $this->redirect(array(
+            'controller' => 'pages',
+            'action' => 'detallepublicidad',
+            $fecha,
+            $url
+        ));
+    }
+}
+```
+
+This allows marking a promotion complaint as viewed/resolved when the user accesses the promotion details.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Be Specific" icon="bullseye">
+    Provide detailed information about the issue, including product names, dates, and specific problems encountered.
+  </Card>
+  
+  <Card title="Professional Tone" icon="handshake">
+    Keep complaints factual and professional. Describe the issue without excessive emotion.
+  </Card>
+  
+  <Card title="Timely Response" icon="clock">
+    Vendors should respond to complaints within 24-48 hours to maintain customer satisfaction.
+  </Card>
+  
+  <Card title="Document Everything" icon="file-lines">
+    The system automatically records all complaint details and responses for future reference and auditing.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Can't submit complaint">
+    **Possible causes**:
+    - Not logged in (for authenticated complaint types)
+    - Missing required fields
+    - Invalid product or promotion ID
+    
+    **Solutions**:
+    - Verify you're logged in if required
+    - Fill in all required form fields
+    - Ensure you've selected a valid product/promotion
+  </Accordion>
+  
+  <Accordion title="Not seeing my complaints">
+    **Possible causes**:
+    - Looking in wrong section
+    - Complaints submitted under different account
+    - Location filter active
+    
+    **Solutions**:
+    - Check "Mis Reclamos" or "My Complaints" section
+    - Verify you're logged in with the correct account
+    - Ensure location filter matches where complaint was filed
+  </Accordion>
+  
+  <Accordion title="Response not saving">
+    **Possible causes**:
+    - Missing required response fields
+    - Database connection issue
+    - Invalid complaint ID
+    
+    **Solutions**:
+    - Fill in all required fields in response form
+    - Check system status
+    - Verify complaint still exists and is unresolved
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Managing Products" icon="boxes-stacked" href="/guide/managing-products">
+    Learn how to manage gallery items and inventory
+  </Card>
+  <Card title="Permissions" icon="shield-check" href="/guide/permissions">
+    Understand access control and user roles
+  </Card>
+</CardGroup>

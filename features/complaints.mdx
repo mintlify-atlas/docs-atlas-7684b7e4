@@ -1,0 +1,171 @@
+---
+title: Complaints & Reports
+description: Submit and track complaints about products and venues with real-time response management
+---
+
+# Complaints & Reports
+
+The Yoneily platform provides a comprehensive complaint and report management system that allows customers to submit feedback about products and promotions, and enables venue managers to respond quickly and track resolution status.
+
+## How It Works
+
+The complaint system creates a two-way communication channel between customers and venue managers, ensuring that issues are documented, tracked, and resolved efficiently.
+
+<CardGroup cols={2}>
+  <Card title="Submit Complaints" icon="comment-exclamation">
+    Report issues with products, promotions, or service quality
+  </Card>
+  <Card title="Track Status" icon="list-check">
+    Monitor complaint resolution in real-time
+  </Card>
+  <Card title="Receive Responses" icon="reply">
+    Get direct feedback from venue managers
+  </Card>
+  <Card title="View History" icon="clock-rotate-left">
+    Access your complete complaint history
+  </Card>
+</CardGroup>
+
+## Submitting a Complaint
+
+### For Products
+
+Customers can report issues with products they've purchased or browsed:
+
+1. Navigate to the product page
+2. Click the complaint/report button
+3. Fill out the complaint form with:
+   - Description of the issue
+   - Product details (automatically captured)
+   - Venue information (automatically captured)
+   - Any additional comments
+4. Submit the complaint
+
+The system automatically records:
+- Submission date
+- Customer information (linked to your account)
+- Product ID and venue ID
+- Complaint status (initially set to "pending")
+
+<Note>
+  All complaints are timestamped and assigned a unique tracking ID for easy reference.
+</Note>
+
+### For Promotions
+
+Similar to product complaints, you can also report issues with promotional campaigns:
+
+1. View a promotion detail page
+2. Select "Report Issue"
+3. Provide details about the problem
+4. Submit for review
+
+The system tracks which promotion the complaint relates to and routes it to the appropriate venue manager.
+
+## Managing Complaints (Venue Staff)
+
+### Viewing Incoming Complaints
+
+Venue managers and staff can access all complaints related to their location:
+
+- **Dashboard View**: See all pending complaints (resp = 0)
+- **Filtered by Venue**: Automatically shows only complaints for your venue
+- **Sorted by Date**: Most recent complaints appear first
+- **Paginated Results**: Browse through complaints 10 at a time
+
+### Responding to Complaints
+
+To respond to a customer complaint:
+
+1. Click on a complaint to view full details
+2. Review the customer's issue and product information
+3. Write a response explaining:
+   - Actions taken to address the issue
+   - Resolution details
+   - Any follow-up steps
+4. Submit the response
+
+When you submit a response:
+- The original complaint status changes to "resolved" (status = 1)
+- A new record is created with your response
+- The customer is notified (when email notifications are enabled)
+- Your response is linked to the original complaint
+
+<Info>
+  Responses are attributed to the staff member who submitted them, creating accountability and transparency.
+</Info>
+
+## Complaint Statuses
+
+The system uses several status indicators to track complaint lifecycle:
+
+| Status | Description |
+|--------|-------------|
+| **resp = 0** | Complaint pending, awaiting venue response |
+| **resp = [user_id]** | Response submitted by venue staff member |
+| **status = 0** | New complaint or response |
+| **status = 1** | Complaint has been answered/closed |
+
+## Access Control
+
+The complaint system respects user permissions:
+
+- **Customers**: Can submit complaints and view their own complaint history
+- **Venue Staff**: Can view and respond to complaints for their assigned venue only
+- **Administrators**: Can view and manage all complaints across all venues
+
+<Note>
+  Public access is allowed for complaint submission (no login required), making it easy for any customer to report issues.
+</Note>
+
+## Complaint Details Tracking
+
+Each complaint record includes:
+
+- **Customer Information**: Linked to registered user account
+- **Venue/Location**: Which venue the complaint is about
+- **Product or Promotion**: Specific item being reported
+- **Submission Date**: When the complaint was filed
+- **Description**: Customer's explanation of the issue
+- **Response Thread**: All responses from venue staff
+- **Resolution Status**: Current state of the complaint
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="For Customers">
+    - Be specific and detailed in your complaint description
+    - Include relevant information like purchase date or product condition
+    - Check back for responses from venue managers
+    - Follow up if the issue isn't resolved to your satisfaction
+  </Accordion>
+  
+  <Accordion title="For Venue Staff">
+    - Respond to complaints promptly (check dashboard daily)
+    - Provide clear explanations of how you're addressing the issue
+    - Take ownership of problems even if not directly your fault
+    - Use complaints as feedback to improve products and service
+    - Mark complaints as resolved only after taking action
+  </Accordion>
+  
+  <Accordion title="For Administrators">
+    - Monitor response times across all venues
+    - Follow up on unresolved complaints older than 48 hours
+    - Use complaint data to identify problem areas
+    - Provide guidance to venues with high complaint volumes
+  </Accordion>
+</AccordionGroup>
+
+## Viewing Your Complaints
+
+Customers can access their complaint history to:
+- See all complaints you've submitted
+- Check response status
+- Read venue responses
+- Track resolution progress
+
+The system maintains a complete audit trail of all complaint activity for transparency and accountability.
+
+<Info>
+  The complaint system helps maintain quality standards across all venues and ensures customer concerns are heard and addressed promptly.
+</Info>

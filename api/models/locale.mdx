@@ -1,0 +1,349 @@
+---
+title: 'Locale Model'
+description: 'Model for managing business locales with comprehensive validation, multiple file uploads, and business information'
+---
+
+## Overview
+
+The `Locale` model represents business locations or establishments in the Yoneily system. It manages detailed business information including company details, manager information, contact data, bank accounts, and multiple file uploads for business and location images.
+
+## Model Configuration
+
+<ResponseField name="name" type="string" default="Locale">
+  Model name identifier
+</ResponseField>
+
+<ResponseField name="primaryKey" type="string" default="id_local">
+  Primary key field for the Locale model
+</ResponseField>
+
+<ResponseField name="displayField" type="string" default="nombre_file">
+  Default field to display when referencing this model
+</ResponseField>
+
+## Schema Fields
+
+### Business Information
+
+<ResponseField name="id_local" type="integer" required>
+  Unique identifier for the locale record (primary key)
+</ResponseField>
+
+<ResponseField name="nombre_empresa" type="string" required>
+  Company/business name
+</ResponseField>
+
+<ResponseField name="rif" type="string" required>
+  RIF (Registro de Información Fiscal) - Tax identification number
+</ResponseField>
+
+<ResponseField name="direccion" type="string" required>
+  Business address
+</ResponseField>
+
+### Manager Information
+
+<ResponseField name="encargado_nombre" type="string" required>
+  Manager's first name
+</ResponseField>
+
+<ResponseField name="encargado_apellido" type="string" required>
+  Manager's last name
+</ResponseField>
+
+<ResponseField name="encargado_cedula" type="integer" required>
+  Manager's ID card number (numeric only)
+</ResponseField>
+
+### Contact Information
+
+<ResponseField name="telefono_cel" type="integer" required>
+  Mobile phone number (numeric only)
+</ResponseField>
+
+<ResponseField name="correo" type="string">
+  Email address (validation commented out)
+</ResponseField>
+
+### Bank Account Information
+
+<ResponseField name="n_cuenta_uno" type="integer" required>
+  Primary bank account number (numeric only)
+</ResponseField>
+
+<ResponseField name="descripcion_n_cuenta_uno" type="string" required>
+  Description for primary bank account
+</ResponseField>
+
+<ResponseField name="descripcion_n_cuenta_dos" type="string">
+  Description for secondary bank account (optional)
+</ResponseField>
+
+### File Uploads
+
+<ResponseField name="nombre_file" type="string">
+  Business image filename (managed by MeioUpload)
+</ResponseField>
+
+<ResponseField name="ubicacion_file" type="string">
+  Location/map image filename (managed by MeioUpload)
+</ResponseField>
+
+### Security
+
+<ResponseField name="newpass" type="string">
+  New password field (minimum 4 characters)
+</ResponseField>
+
+### Foreign Keys
+
+<ResponseField name="usuario_id_usuario" type="integer">
+  Foreign key reference to the User who manages this locale
+</ResponseField>
+
+## Validation Rules
+
+<Expandable title="nombre_empresa Validation">
+```php
+'nombre_empresa'=>array(
+    'rule'=>array('notEmpty'),
+    'message' => 'No debes dejar vacio el campo'
+)
+```
+</Expandable>
+
+<Expandable title="rif Validation">
+```php
+'rif' => array(
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => 'No debes dejar vacio el campo'
+    )
+)
+```
+</Expandable>
+
+<Expandable title="encargado_nombre Validation">
+```php
+'encargado_nombre'=>array(
+    'rule'=>array('notEmpty'),
+    'message' => 'No debes dejar vacio el campo'
+)
+```
+</Expandable>
+
+<Expandable title="encargado_apellido Validation">
+```php
+'encargado_apellido'=>array(
+    'rule'=>array('notEmpty'),
+    'message' => 'No debes dejar vacio el campo'
+)
+```
+</Expandable>
+
+<Expandable title="encargado_cedula Validation">
+```php
+'encargado_cedula' => array(
+    'userrule1' => array(
+        'rule' => array('numeric'),
+        'message' => 'Ingrese solo numeros'
+    ),
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => '* Requerido'
+    )
+)
+```
+  <ResponseField name="numeric" type="boolean" default="true">
+    Must be numeric value only
+  </ResponseField>
+  <ResponseField name="notEmpty" type="boolean" default="true">
+    Required field
+  </ResponseField>
+</Expandable>
+
+<Expandable title="telefono_cel Validation">
+```php
+'telefono_cel' => array(
+    'userrule1' => array(
+        'rule' => array('numeric'),
+        'message' => 'Ingrese solo numeros'
+    ),
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => '* Requerido'
+    )
+)
+```
+  <ResponseField name="numeric" type="boolean" default="true">
+    Must be numeric value only
+  </ResponseField>
+</Expandable>
+
+<Expandable title="n_cuenta_uno Validation">
+```php
+'n_cuenta_uno' => array(
+    'userrule1' => array(
+        'rule' => array('numeric'),
+        'message' => 'Ingrese solo numeros'
+    ),
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => '* Requerido'
+    )
+)
+```
+  <ResponseField name="numeric" type="boolean" default="true">
+    Bank account must be numeric only
+  </ResponseField>
+</Expandable>
+
+<Expandable title="descripcion_n_cuenta_uno Validation">
+```php
+'descripcion_n_cuenta_uno' => array(
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => 'No debes dejar vacio el campo'
+    )
+)
+```
+</Expandable>
+
+<Expandable title="direccion Validation">
+```php
+'direccion' => array(
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => 'No debes dejar vacio el campo'
+    )
+)
+```
+</Expandable>
+
+<Expandable title="newpass Validation">
+```php
+'newpass'=>array(
+    'rule' => array('minLength', 4),
+    'message' => 'Este campo debe tener minimo 4 caracteres'
+)
+```
+  <ResponseField name="minLength" type="integer" default="4">
+    Minimum password length
+  </ResponseField>
+</Expandable>
+
+## Behaviors
+
+### MeioUpload Behavior
+
+Handles automatic file uploads for two separate image fields:
+
+```php
+var $actsAs = array(
+    'MeioUpload' => array(
+        'nombre_file' => array(
+            'dir' => 'files{DS}locales/otras',
+            'create_directory' => true,
+            'thumbnailQuality' => 50,
+            'useImageMagick' => true,
+            'allowed_mime' => array('image/gif', 'image/jpeg', 'image/pjpeg', 'image/png','audio/mpeg','application/x-shockwave-flash','video/x-flv'),
+            'allowed_ext' => array('.jpg','.JPG', '.jpeg','.JPEG', '.png','.PNG', '.gif','.GIF','.mp3','.swf','.flv')
+        ),
+        'ubicacion_file' => array(
+            'dir' => 'files{DS}locales/otras',
+            'create_directory' => true,
+            'thumbnailQuality' => 50,
+            'useImageMagick' => true,
+            'allowed_mime' => array('image/gif', 'image/jpeg', 'image/pjpeg', 'image/png','audio/mpeg','application/x-shockwave-flash','video/x-flv'),
+            'allowed_ext' => array('.jpg','.JPG', '.jpeg','.JPEG', '.png','.PNG', '.gif','.GIF','.mp3','.swf','.flv')
+        )
+    )
+);
+```
+
+<ResponseField name="MeioUpload" type="behavior">
+  <Expandable title="nombre_file Configuration">
+    <ResponseField name="dir" type="string" default="files{DS}locales/otras">
+      Upload directory for business images
+    </ResponseField>
+    <ResponseField name="create_directory" type="boolean" default="true">
+      Automatically create directory if it doesn't exist
+    </ResponseField>
+    <ResponseField name="thumbnailQuality" type="integer" default="50">
+      JPEG quality for thumbnails (1-100)
+    </ResponseField>
+    <ResponseField name="useImageMagick" type="boolean" default="true">
+      Use ImageMagick for image processing
+    </ResponseField>
+    <ResponseField name="allowed_mime" type="array">
+      Permitted MIME types: images, audio (MP3), Flash (SWF), and video (FLV)
+    </ResponseField>
+    <ResponseField name="allowed_ext" type="array">
+      Permitted file extensions: .jpg, .jpeg, .png, .gif, .mp3, .swf, .flv
+    </ResponseField>
+  </Expandable>
+  
+  <Expandable title="ubicacion_file Configuration">
+    <ResponseField name="dir" type="string" default="files{DS}locales/otras">
+      Upload directory for location/map images
+    </ResponseField>
+    <ResponseField name="configuration" type="string">
+      Same configuration as nombre_file (see above)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Relationships
+
+### belongsTo Associations
+
+<Expandable title="User Association">
+```php
+'User' => array(
+    'className' => 'User',
+    'foreignKey' => 'usuario_id_usuario',
+    'conditions' => '',
+    'fields' => '',
+    'order' => ''
+)
+```
+  <ResponseField name="foreignKey" type="string" default="usuario_id_usuario">
+    Links to the User who manages this locale
+  </ResponseField>
+</Expandable>
+
+### hasAndBelongsToMany Associations
+
+<Expandable title="Archivo Association (HABTM)">
+```php
+'Archivo' => array(
+    'className' => 'Archivo',
+    'joinTable' => 'archivos_galleries',
+    'foreignKey' => 'galerias_id_galeria',
+    'associationForeignKey' => 'files_id_file',
+    'unique' => true
+)
+```
+  <ResponseField name="joinTable" type="string" default="archivos_galleries">
+    Join table for many-to-many relationship with files
+  </ResponseField>
+</Expandable>
+
+<Expandable title="Category Association (HABTM)">
+```php
+'Category' => array(
+    'className' => 'Category',
+    'joinTable' => 'categories_galleries',
+    'foreignKey' => 'galleries_id_galeria',
+    'associationForeignKey' => 'categories_id_categorias',
+    'unique' => true
+)
+```
+  <ResponseField name="joinTable" type="string" default="categories_galleries">
+    Join table for many-to-many relationship with categories
+  </ResponseField>
+</Expandable>
+
+## Source Reference
+
+Source file: `app/models/locale.php`

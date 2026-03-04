@@ -1,0 +1,313 @@
+---
+title: 'Gallery Model'
+description: 'Model for managing galleries with image uploads, automatic URL generation, and many-to-many relationships'
+---
+
+## Overview
+
+The `Gallery` model manages image galleries in the Yoneily system. It includes automatic file upload handling via MeioUpload behavior, automatic URL slug generation, and complex relationships with users, locales, categories, and files.
+
+## Model Configuration
+
+<ResponseField name="name" type="string" default="Gallery">
+  Model name identifier
+</ResponseField>
+
+<ResponseField name="primaryKey" type="string" default="id_galeria">
+  Primary key field for the Gallery model
+</ResponseField>
+
+<ResponseField name="displayField" type="string" default="thumbnails">
+  Default field to display when referencing this model
+</ResponseField>
+
+## Schema Fields
+
+<ResponseField name="id_galeria" type="integer" required>
+  Unique identifier for the gallery record (primary key)
+</ResponseField>
+
+<ResponseField name="texto_galeria" type="string" required>
+  Gallery title/text (used for URL generation)
+</ResponseField>
+
+<ResponseField name="claves" type="string" required>
+  Keywords/tags for the gallery (used for URL generation)
+</ResponseField>
+
+<ResponseField name="descripcion" type="string" required>
+  Gallery description
+</ResponseField>
+
+<ResponseField name="thumbnails" type="string">
+  Thumbnail image filename (managed by MeioUpload)
+</ResponseField>
+
+<ResponseField name="url" type="string">
+  Auto-generated SEO-friendly URL slug
+</ResponseField>
+
+<ResponseField name="locale_id_local" type="integer" required>
+  Foreign key reference to the associated Locale
+</ResponseField>
+
+<ResponseField name="usuario_id_usuario" type="integer">
+  Foreign key reference to the User who created the gallery
+</ResponseField>
+
+## Validation Rules
+
+<Expandable title="texto_galeria Validation">
+```php
+'texto_galeria'=>array(
+    'rule'=>array('notEmpty'),
+    'message' => 'No debes dejar vacio el campo'
+)
+```
+  <ResponseField name="rule" type="string">
+    Must not be empty
+  </ResponseField>
+  <ResponseField name="message" type="string">
+    "No debes dejar vacio el campo"
+  </ResponseField>
+</Expandable>
+
+<Expandable title="claves Validation">
+```php
+'claves' => array(
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => 'No debes dejar vacio el campo'
+    )
+)
+```
+  <ResponseField name="rule" type="string">
+    Must not be empty
+  </ResponseField>
+</Expandable>
+
+<Expandable title="descripcion Validation">
+```php
+'descripcion' => array(
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => 'No debes dejar vacio el campo'
+    )
+)
+```
+  <ResponseField name="rule" type="string">
+    Must not be empty
+  </ResponseField>
+</Expandable>
+
+<Expandable title="locale_id_local Validation">
+```php
+'locale_id_local' => array(
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => '* Requerido'
+    )
+)
+```
+  <ResponseField name="rule" type="string">
+    Must not be empty (required field)
+  </ResponseField>
+</Expandable>
+
+## Behaviors
+
+### MeioUpload Behavior
+
+Handles automatic file uploads for gallery thumbnails:
+
+```php
+var $actsAs = array(
+    'MeioUpload' => array(
+        'thumbnails' => array(
+            'dir' => 'files{DS}galeria/otras',
+            'create_directory' => true,
+            'thumbnailQuality' => 50,
+            'useImageMagick' => true,
+            'allowed_mime' => array('image/gif', 'image/jpeg', 'image/pjpeg', 'image/png','audio/mpeg','application/x-shockwave-flash','video/x-flv'),
+            'allowed_ext' => array('.jpg','.JPG', '.jpeg','.JPEG', '.png','.PNG', '.gif','.GIF','.mp3','.swf','.flv')
+        )
+    )
+);
+```
+
+<ResponseField name="MeioUpload" type="behavior">
+  <Expandable title="Configuration Details">
+    <ResponseField name="dir" type="string" default="files{DS}galeria/otras">
+      Upload directory path
+    </ResponseField>
+    <ResponseField name="create_directory" type="boolean" default="true">
+      Automatically create directory if it doesn't exist
+    </ResponseField>
+    <ResponseField name="thumbnailQuality" type="integer" default="50">
+      JPEG quality for thumbnails (1-100)
+    </ResponseField>
+    <ResponseField name="useImageMagick" type="boolean" default="true">
+      Use ImageMagick for image processing
+    </ResponseField>
+    <ResponseField name="allowed_mime" type="array">
+      Permitted MIME types: images, audio (MP3), Flash (SWF), and video (FLV)
+    </ResponseField>
+    <ResponseField name="allowed_ext" type="array">
+      Permitted file extensions: .jpg, .jpeg, .png, .gif, .mp3, .swf, .flv
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Relationships
+
+### belongsTo Associations
+
+<Expandable title="User Association">
+```php
+'User' => array(
+    'className' => 'User',
+    'foreignKey' => 'usuario_id_usuario',
+    'conditions' => '',
+    'fields' => 'id_usuario,perfil_usuario,groups_idgrupos',
+    'order' => ''
+)
+```
+  <ResponseField name="foreignKey" type="string" default="usuario_id_usuario">
+    Links to the User who created the gallery
+  </ResponseField>
+  <ResponseField name="fields" type="string">
+    Only retrieves specific user fields: id, profile, and group ID
+  </ResponseField>
+</Expandable>
+
+<Expandable title="Locale Association">
+```php
+'Locale' => array(
+    'className' => 'Locale',
+    'foreignKey' => 'locale_id_local',
+    'conditions' => '',
+    'fields' => '',
+    'order' => ''
+)
+```
+  <ResponseField name="foreignKey" type="string" default="locale_id_local">
+    Links to the associated Locale
+  </ResponseField>
+</Expandable>
+
+### hasMany Associations
+
+<Expandable title="Newsgalleries Association">
+```php
+'Newsgalleries' => array(
+    'className'     => 'news_galleries',
+    'foreignKey'    => 'galerias_id_galeria',
+    'conditions'    => '',
+    'order'    => ''
+)
+```
+  <ResponseField name="className" type="string" default="news_galleries">
+    Join model linking galleries to news articles
+  </ResponseField>
+</Expandable>
+
+### hasAndBelongsToMany Associations
+
+<Expandable title="Archivo Association (HABTM)">
+```php
+'Archivo' => array(
+    'className' => 'Archivo',
+    'joinTable' => 'archivos_galleries',
+    'foreignKey' => 'galerias_id_galeria',
+    'associationForeignKey' => 'files_id_file',
+    'unique' => true
+)
+```
+  <ResponseField name="joinTable" type="string" default="archivos_galleries">
+    Join table for many-to-many relationship
+  </ResponseField>
+  <ResponseField name="unique" type="boolean" default="true">
+    Prevents duplicate associations
+  </ResponseField>
+</Expandable>
+
+<Expandable title="Category Association (HABTM)">
+```php
+'Category' => array(
+    'className' => 'Category',
+    'joinTable' => 'categories_galleries',
+    'foreignKey' => 'galleries_id_galeria',
+    'associationForeignKey' => 'categories_id_categorias',
+    'unique' => true
+)
+```
+  <ResponseField name="joinTable" type="string" default="categories_galleries">
+    Join table for many-to-many relationship with categories
+  </ResponseField>
+</Expandable>
+
+## Custom Methods
+
+### beforeSave()
+
+Automatically generates unique, SEO-friendly URL slugs before saving:
+
+```php
+function beforeSave() {
+    $currentUrl = Inflector::slug(strtolower($this->data[$this->name]['texto_galeria']));
+    $claves = Inflector::slug(strtolower($this->data[$this->name]['claves']));
+    
+    $result = $this->find('all',array(
+        'conditions' => array(
+            $this->name .'.url' => $currentUrl.''.$claves,
+            $this->name .".".$this->primaryKey." != "=>$this->id
+        ),
+        'fields' => array($this->name.'.*')
+    ));
+
+    if ($result !== false && count($result) > 0) {
+        $sameUrls = array();
+        foreach($result as $record) {
+            $sameUrls[] = $record[$this->name]['url'];
+        }
+    }
+
+    if (isset($sameUrls) && count($sameUrls) > 0) {
+        $currentBegginingUrl = $currentUrl.''.$claves;
+        $currentIndex = 1;
+        
+        while($currentIndex > 0) {
+            if (!in_array($currentBegginingUrl . '_' . $currentIndex, $sameUrls)) {
+                $currentUrl = $currentBegginingUrl . '_' . $currentIndex;
+                $currentIndex = -1;
+            }
+            $currentIndex++;
+        }
+    }
+
+    $this->data[$this->name]['url'] = str_replace("_","-",$currentUrl.''.$claves);
+    return true;
+}
+```
+
+<ResponseField name="beforeSave" type="function">
+  <Expandable title="Function Details">
+    <ResponseField name="purpose" type="string">
+      Generates unique URL slugs from texto_galeria and claves fields
+    </ResponseField>
+    <ResponseField name="behavior" type="string">
+      - Converts text to lowercase slugs
+      - Combines texto_galeria and claves
+      - Checks for existing URLs
+      - Appends numeric suffix if URL exists
+      - Replaces underscores with hyphens
+    </ResponseField>
+    <ResponseField name="returns" type="boolean" default="true">
+      Always returns true to allow save operation
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Source Reference
+
+Source file: `app/models/gallery.php`

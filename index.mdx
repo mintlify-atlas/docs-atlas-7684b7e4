@@ -1,97 +1,146 @@
----
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
----
+<div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 dark:from-[#1e40af] dark:via-[#1e3a8a] dark:to-[#1e293b]">
+  <div className="relative py-20 px-6 max-w-6xl mx-auto">
+    <div className="text-center">
+      <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
+        Welcome to Yoneily
+      </h1>
+      <p className="text-xl md:text-2xl text-blue-100 dark:text-blue-200 max-w-3xl mx-auto mb-10">
+        A comprehensive complaint and report management system with role-based access control, product galleries, and venue management
+      </p>
+      <div className="flex flex-wrap gap-4 justify-center">
+        <a 
+          href="/introduction" 
+          className="inline-flex items-center px-8 py-3 text-base font-semibold text-blue-700 bg-white rounded-lg hover:bg-blue-50 transition-colors no-underline"
+        >
+          Get Started
+        </a>
+        <a 
+          href="/api/controllers/denuncias" 
+          className="inline-flex items-center px-8 py-3 text-base font-semibold text-white border-2 border-white/30 bg-white/10 rounded-lg hover:bg-white/20 transition-colors no-underline"
+        >
+          Explore API Reference
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 
-## Setting up
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Quick start
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Get up and running with Yoneily in just a few steps
+  </p>
 
-Get your documentation site up and running in minutes.
+  <Steps>
+    <Step title="Install CakePHP and dependencies">
+      Ensure you have PHP 5.3+ and a MySQL database. Extract the Yoneily source to your web server directory.
+      
+      ```bash
+      # Set proper permissions
+      chmod -R 755 sistema_magdaleno/app/tmp
+      chmod -R 755 sistema_magdaleno/app/webroot
+      ```
+    </Step>
+    
+    <Step title="Configure database connection">
+      Update the database configuration in `app/config/database.php` with your credentials.
+      
+      ```php
+      var $default = array(
+        'driver' => 'mysql',
+        'persistent' => false,
+        'host' => 'localhost',
+        'login' => 'your_username',
+        'password' => 'your_password',
+        'database' => 'venezuela_naciones',
+        'prefix' => '',
+      );
+      ```
+    </Step>
+    
+    <Step title="Import the database schema">
+      Import the provided SQL file to set up the database structure and initial data.
+      
+      ```bash
+      mysql -u your_username -p venezuela_naciones < localhost.sql
+      ```
+    </Step>
+    
+    <Step title="Access the application">
+      Navigate to your application URL and log in with administrator credentials to start managing complaints and reports.
+    </Step>
+  </Steps>
+</div>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Core features
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Explore the powerful capabilities of Yoneily
+  </p>
 
-## Make it yours
+  <CardGroup cols={2}>
+    <Card title="Complaint management" icon="flag" href="/features/complaints">
+      Submit, track, and respond to customer complaints with a complete workflow system
+    </Card>
+    <Card title="User management" icon="users" href="/features/user-management">
+      Role-based access control with granular permissions for different user types
+    </Card>
+    <Card title="Product galleries" icon="images" href="/features/galleries">
+      Manage product catalogs with image uploads, categories, and inventory tracking
+    </Card>
+    <Card title="Promotions" icon="tag" href="/features/promotions">
+      Create and manage promotional campaigns for products and venues
+    </Card>
+    <Card title="Venue management" icon="store" href="/features/venues">
+      Track and manage multiple business locations with detailed information
+    </Card>
+    <Card title="ACL system" icon="shield-check" href="/guide/permissions">
+      Fine-grained access control lists for secure permission management
+    </Card>
+  </CardGroup>
+</div>
 
-Design a docs site that looks great and empowers your users.
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <h2 className="text-3xl font-semibold text-gray-900 dark:text-white mb-4">
+    Developer resources
+  </h2>
+  <p className="text-base text-gray-600 dark:text-gray-400 mb-8">
+    Everything you need to extend and customize Yoneily
+  </p>
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+  <CardGroup cols={2}>
+    <Card title="Controllers" icon="code" href="/api/controllers/denuncias">
+      Complete controller reference with all available actions and parameters
+    </Card>
+    <Card title="Models" icon="database" href="/api/models/denuncia">
+      Data models with relationships, validations, and custom methods
+    </Card>
+    <Card title="Authentication" icon="key" href="/guide/authentication">
+      Learn how to implement secure user authentication and sessions
+    </Card>
+    <Card title="Database setup" icon="table" href="/admin/database">
+      Database schema, migrations, and data management best practices
+    </Card>
+  </CardGroup>
+</div>
 
-## Create beautiful pages
-
-Everything you need to create world-class documentation.
-
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+  <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 to-blue-700 dark:from-[#1e40af] dark:to-[#1e3a8a] rounded-2xl p-10 text-center border border-blue-500 dark:border-blue-800">
+    <h2 className="text-3xl font-bold text-white mb-4">
+      Ready to get started?
+    </h2>
+    <p className="text-lg text-blue-100 dark:text-blue-200 mb-8 max-w-2xl mx-auto">
+      Follow our installation guide to set up Yoneily for your organization
+    </p>
+    <a 
+      href="/installation" 
+      className="inline-flex items-center px-8 py-3 text-base font-semibold text-blue-700 bg-white rounded-lg hover:bg-blue-50 transition-colors no-underline"
+    >
+      View Installation Guide
+    </a>
+  </div>
+</div>

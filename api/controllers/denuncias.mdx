@@ -1,0 +1,485 @@
+---
+title: 'Denuncias Controller'
+description: 'API reference for the Denuncias (Reports/Complaints) controller that handles user complaints, reports, and responses in the Yoneily system'
+---
+
+## Overview
+
+The `DenunciasController` manages the complaint and report system in Yoneily. It handles both user complaints about products/services and business responses to those complaints. The controller supports complaints for both gallery items and promotions, with a complete workflow from submission to response.
+
+**Models Used**: `Denuncia`, `Locale`, `Gallery`, `User`
+
+**Helpers**: `Html`, `Form`, `Javascript`
+
+## Authentication & Access Control
+
+```php
+function beforeFilter() {
+    $this->Auth->allowedActions = array(
+        'add', 'consulta', 'denunciar', 'fin_denunciar', 
+        'denunciar_promo', 'registro_reclamo', 'registro_denuncia',
+        'detallemensajepromo'
+    );
+}
+```
+
+The following actions are publicly accessible without authentication:
+- add
+- consulta
+- denunciar
+- fin_denunciar
+- denunciar_promo
+- registro_reclamo
+- registro_denuncia
+- detallemensajepromo
+
+## Public Actions
+
+### index()
+
+Lists all pending complaints for the admin panel.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**Access**: Requires authentication (not in allowedActions)
+
+**Behavior**:
+- If user has a `locale_id_local` session value, filters complaints by that local
+- Only shows complaints where `resp = 0` (pending responses)
+- Paginated with 10 items per page, ordered by date descending
+
+**View Variables**:
+- `reclamos`: Paginated complaint records
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:17
+
+---
+
+### view($id)
+
+Views a single complaint record (note: currently references Venta model, likely a bug).
+
+<ParamField path="id" type="integer" required>
+  The complaint ID
+</ParamField>
+
+**Returns**: Redirects to index if invalid ID
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:29
+
+---
+
+### add($producto, $usuario, $local)
+
+Handles adding a sale/purchase record (legacy function for venta system).
+
+<ParamField path="producto" type="integer" required>
+  Gallery product ID
+</ParamField>
+
+<ParamField path="usuario" type="integer" required>
+  Register/user ID
+</ParamField>
+
+<ParamField path="local" type="integer" required>
+  Local/business ID
+</ParamField>
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+**Returns**: Echoes integer status codes
+- `1`: Success
+- `0`: Save failed
+- `2`: Product out of stock
+
+**Behavior**:
+- Checks product availability
+- Decrements stock and increments sold count
+- Creates venta record
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:37
+
+---
+
+### consulta($producto, $usuario, $local)
+
+Checks if a user can purchase a product (validates availability and duplicate purchases).
+
+<ParamField path="producto" type="integer" required>
+  Gallery product ID
+</ParamField>
+
+<ParamField path="usuario" type="integer" required>
+  Register/user ID
+</ParamField>
+
+<ParamField path="local" type="integer" required>
+  Local/business ID
+</ParamField>
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+**Returns**: Echoes integer status codes
+- `3`: Product available for purchase
+- `2`: Product out of stock
+- `4`: User already purchased this product
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:67
+
+---
+
+### denunciar()
+
+Submits a new complaint/report.
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+<ParamField body="this->data['Denuncia']" type="array" required>
+  Complaint data from POST request
+</ParamField>
+
+**Behavior**:
+- Adds current date to the complaint
+- Saves complaint to database
+- Redirects to `fin_denunciar` on success
+
+**Access**: Public (allowed action)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:86
+
+---
+
+### denunciar_promo()
+
+Submits a complaint specifically for a promotion.
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+<ParamField body="this->data['Denuncia']" type="array" required>
+  Complaint data from POST request
+</ParamField>
+
+**Behavior**:
+- Identical to `denunciar()` but specifically for promotions
+- Adds current date to the complaint
+- Redirects to `fin_denunciar` on success
+
+**Access**: Public (allowed action)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:100
+
+---
+
+### fin_denunciar()
+
+Displays confirmation page after submitting a complaint.
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+**Access**: Public (allowed action)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:114
+
+---
+
+### finalizar_denunciar()
+
+Finalizes a complaint by updating locale information.
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+<ParamField body="this->data" type="array" required>
+  Locale update data
+</ParamField>
+
+**Behavior**:
+- Saves locale data changes
+- Sets flash message and redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:117
+
+---
+
+### edit($id)
+
+Edits locale information related to a complaint.
+
+<ParamField path="id" type="integer" required>
+  Locale ID
+</ParamField>
+
+**Access**: Requires ACL permission for 'editar galerias'
+
+**Behavior**:
+- Checks ACL permissions
+- Updates locale record
+- Redirects to index on success
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:129
+
+---
+
+### delete($id)
+
+Deletes a complaint record.
+
+<ParamField path="id" type="integer" required>
+  Complaint ID to delete
+</ParamField>
+
+**Behavior**:
+- Permanently deletes the complaint
+- Sets success flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:157
+
+---
+
+### deleteimg($id, $idfile)
+
+Deletes an image associated with a gallery.
+
+<ParamField path="id" type="integer" required>
+  Gallery ID
+</ParamField>
+
+<ParamField path="idfile" type="integer" required>
+  File/image ID
+</ParamField>
+
+**Behavior**:
+- Uses raw SQL query to delete image records
+- Removes from archivos_galleries and archivos tables
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:163
+
+---
+
+### desactiva($id)
+
+Deactivates a locale.
+
+<ParamField path="id" type="integer" required>
+  Locale ID
+</ParamField>
+
+**Behavior**:
+- Sets `Locale.status` to 0
+- Shows flash message and redirects
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:179
+
+---
+
+### activa($id)
+
+Activates a locale.
+
+<ParamField path="id" type="integer" required>
+  Locale ID
+</ParamField>
+
+**Behavior**:
+- Sets `Locale.status` to 1
+- Shows flash message and redirects
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:194
+
+---
+
+### responder_denuncia($id)
+
+Displays the form to respond to a complaint (admin view).
+
+<ParamField path="id" type="integer" required>
+  Complaint ID
+</ParamField>
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**View Variables**:
+- `info`: Complaint details
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:209
+
+---
+
+### registro_denuncia()
+
+Processes and saves an admin response to a complaint.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['Denuncia']" type="array" required>
+  Response data including:
+  - usuario: Responding user ID
+  - id_respuesta: Original complaint ID
+  - mensaje: Response message
+  - promocion_id_promo: Promo ID (optional)
+  - galeria_id_galeria: Gallery ID (optional)
+  - local: Local ID
+</ParamField>
+
+**Behavior**:
+- Retrieves original complaint details
+- Gets responder's name from User model
+- Creates new Denuncia record with response
+- Marks original complaint as responded (status = 1)
+- Redirects to denuncias index
+
+**Access**: Public (allowed action)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:217
+
+---
+
+### responder_reclamo($id)
+
+Displays form to respond to a reclamo (user-facing complaint).
+
+<ParamField path="id" type="integer" required>
+  Complaint ID
+</ParamField>
+
+<ParamField path="layout" type="string" default="nuevo">
+  Uses 'nuevo' layout
+</ParamField>
+
+**Behavior**:
+- Filters by locale_id_local if user has one in session
+- Otherwise shows all complaints
+
+**View Variables**:
+- `info`: Complaint details
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:259
+
+---
+
+### registro_reclamo()
+
+Processes and saves a business response to a user complaint.
+
+<ParamField path="layout" type="string" default="nuevo">
+  Uses 'nuevo' layout
+</ParamField>
+
+<ParamField body="this->data['Denuncia']" type="array" required>
+  Response data including:
+  - usuario: Responding user ID
+  - id_respuesta: Original complaint ID
+  - producto: Product ID
+  - local: Local ID
+</ParamField>
+
+**Behavior**:
+- Similar to `registro_denuncia` but for customer-facing responses
+- Sets resp to 0 (pending)
+- Marks original complaint as responded
+- Redirects to ventas/misreclamos
+
+**Access**: Public (allowed action)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:272
+
+---
+
+### detallemensajepromo($fecha, $url, $id_page)
+
+Marks a promotional complaint message as read and redirects to promotion details.
+
+<ParamField path="fecha" type="string" required>
+  Date parameter
+</ParamField>
+
+<ParamField path="url" type="string" required>
+  URL identifier
+</ParamField>
+
+<ParamField path="id_page" type="integer" required>
+  Complaint ID to mark as read
+</ParamField>
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+**Behavior**:
+- Updates complaint status to 1 (read)
+- Redirects to pages/detallepublicidad
+
+**Access**: Public (allowed action)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/denuncias_controller.php:303
+
+## Usage Examples
+
+### Submitting a Complaint
+
+```php
+// POST to /denuncias/denunciar
+$data = [
+    'Denuncia' => [
+        'mensaje' => 'Product was damaged',
+        'galeria_id_galeria' => 123,
+        'register_idregistro' => 456,
+        'locale_id_local' => 789
+    ]
+];
+```
+
+### Responding to a Complaint (Admin)
+
+```php
+// POST to /denuncias/registro_denuncia
+$data = [
+    'Denuncia' => [
+        'usuario' => 1,
+        'id_respuesta' => 50,
+        'mensaje' => 'We apologize for the inconvenience...',
+        'galeria_id_galeria' => 123,
+        'local' => 789
+    ]
+];
+```
+
+## Database Structure
+
+The controller works with the `denuncias` table with these key fields:
+- `id_denuncia`: Primary key
+- `mensaje`: Complaint message
+- `fecha`: Date of complaint
+- `resp`: Response user ID (0 = pending)
+- `status`: Read status (0 = unread, 1 = read)
+- `register_idregistro`: Customer ID
+- `galeria_id_galeria`: Gallery product ID (optional)
+- `promocion_id_promo`: Promotion ID (optional)
+- `locale_id_local`: Business location ID
+- `nombre`: Responder name

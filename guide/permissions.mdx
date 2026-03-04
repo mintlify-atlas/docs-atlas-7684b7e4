@@ -1,0 +1,423 @@
+---
+title: 'Permissions & Access Control'
+description: 'Understanding user roles, permissions, and the ACL system in Yoneily'
+icon: 'shield-check'
+---
+
+## Overview
+
+Yoneily uses a comprehensive Access Control List (ACL) system to manage what different users can see and do in the application. This ensures that users only have access to the features and data appropriate for their role.
+
+## How Permissions Work
+
+The permission system is built on three key concepts:
+
+1. **ARO (Access Request Object)**: Represents users and groups who request access
+2. **ACO (Access Control Object)**: Represents the controllers and actions being accessed
+3. **Permissions**: The rules that determine which AROs can access which ACOs
+
+### Authorization Flow
+
+When you try to access any feature in Yoneily, the system follows this process:
+
+```php
+// From app_controller.php:10-22
+function beforeFilter() {
+    parent::beforeFilter();
+    $this->Auth->loginAction = array('controller' => 'users', 'action' => 'login');
+    $this->Auth->allow('add_vendedor','consulta_codigo','registrado','display');
+    $this->Auth->loginRedirect = array('controller' => 'users', 'action' => 'home');
+    $this->Auth->loginError = 'El Usuario o el Password no son válidos...';
+    $this->Auth->authorize = 'controller';
+}
+
+function isAuthorized() {
+    return true;
+}
+```
+
+<Steps>
+  <Step title="Action Request">
+    You click a link or submit a form that triggers a controller action.
+  </Step>
+  
+  <Step title="Authentication Check">
+    The system verifies you're logged in with valid credentials.
+  </Step>
+  
+  <Step title="Permission Lookup">
+    The ACL system checks if your user account or group has permission for that specific action.
+  </Step>
+  
+  <Step title="Access Decision">
+    If authorized, the action executes. If not, you're redirected or see an error message.
+  </Step>
+</Steps>
+
+## User Roles and Groups
+
+Yoneily organizes users into groups, with each group having different permission levels.
+
+### Common User Groups
+
+<AccordionGroup>
+  <Accordion title="Administrators" icon="crown">
+    **Highest level of access**
+    
+    Administrators can:
+    - Manage all users and their permissions
+    - Access all controllers and actions
+    - View and manage complaints from all locations
+    - Configure system settings
+    - Build and modify ACL structure
+    - Manage galleries and products across all locations
+    
+    ```php
+    // Administrators typically have group_id = 1
+    // Grant all controller access:
+    $this->Acl->allow($group, 'controllers');
+    ```
+  </Accordion>
+  
+  <Accordion title="Vendors/Sellers" icon="store">
+    **Location-specific access**
+    
+    Vendors can:
+    - View complaints for their assigned location only
+    - Manage products for their location
+    - Respond to customer complaints
+    - Submit reports and denuncias
+    - Update inventory for their location
+    
+    Access is filtered by their `locale_id_local` value.
+  </Accordion>
+  
+  <Accordion title="Customers" icon="user">
+    **Limited public access**
+    
+    Customers can:
+    - Submit complaints and reports
+    - View responses to their own complaints
+    - Register as a vendor (with proper authorization code)
+    - Access public pages
+    
+    ```php
+    // From denuncias_controller.php:13-15
+    function beforeFilter() {
+        $this->Auth->allowedActions = array(
+            'add','consulta','denunciar','fin_denunciar',
+            'denunciar_promo','registro_reclamo',
+            'registro_denuncia','detallemensajepromo'
+        );
+    }
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Location-Based Permissions
+
+Many features in Yoneily are filtered by location (locale) to ensure users only see data relevant to their business location.
+
+### How Location Filtering Works
+
+```php
+// From galleries_controller.php:9-19
+function index() {
+    $user = $this->Session->read('Auth.User.locale_id_local');
+    
+    if(!empty($user)) {
+        // Vendor: See only their location's galleries
+        $this->paginate = array(
+            'conditions' => array('Gallery.locale_id_local' => $user)
+        );
+    } else {
+        // Admin: See all galleries
+        $this->paginate = array('limit' => 10);
+    }
+    $this->set('galleries', $this->paginate('Gallery'));
+}
+```
+
+**How it works**:
+1. System reads your `locale_id_local` from your user session
+2. If you have a location assigned, queries filter results to that location
+3. If you're an admin (no location assigned), you see all data
+
+### Location-Filtered Features
+
+These features automatically filter by location:
+
+- **Complaints (Denuncias)**: Only see complaints for your location
+- **Galleries/Products**: Manage inventory for your location only
+- **Reports**: View reports specific to your location
+- **Sales Data**: Access sales records for your location
+
+## Managing User Permissions
+
+Administrators can manage permissions for individual users through the permissions interface.
+
+### Viewing User Permissions
+
+<Steps>
+  <Step title="Access User Management">
+    Navigate to Users > Index to see the list of all users.
+  </Step>
+  
+  <Step title="Select User">
+    Click on the "Permissions" link for the user you want to manage.
+  </Step>
+  
+  <Step title="View Permission Matrix">
+    You'll see a hierarchical view of all controllers and their actions, with checkboxes indicating whether the user has access.
+  </Step>
+</Steps>
+
+### Permission Management Code
+
+```php
+// From users_controller.php:124-154
+function permission($id = null) {
+    if($id != null) {
+        $this->User->id_usuario = $id;
+        
+        // Get all parent controllers
+        $parents = $this->Aco->find('list', array(
+            'fields' => 'Aco.alias',
+            'conditions' => array(
+                'Aco.parent_id' => '1',
+                'Aco.id >=' => '10'
+            )
+        ));
+        
+        // For each controller, get child actions
+        foreach($parents as $idparent => $alias) {
+            $child[$idparent] = $this->Aco->find('list', array(
+                'fields' => 'Aco.alias',
+                'conditions' => array('Aco.parent_id' => $idparent)
+            ));
+            
+            // Check if user has permission for each action
+            foreach($child[$idparent] as $idhijo => $aliashijo) {
+                $permiso[$idhijo] = $this->Acl->check(
+                    array('model' => 'User', 'foreign_key' => $id),
+                    $aliashijo
+                );
+            }
+        }
+    }
+}
+```
+
+### Granting and Revoking Permissions
+
+Permissions can be toggled on/off using the AJAX interface:
+
+```php
+// From users_controller.php:156-176
+function ajax_load() {
+    if($_POST['key3'] == 0) {
+        // Grant permission
+        $permitido = 1;
+        $this->Acl->allow(
+            array('model' => 'User', 'foreign_key' => $_POST['key']),
+            $_POST['key2']
+        );
+    } else {
+        // Revoke permission
+        $permitido = 0;
+        $this->Acl->deny(
+            array('model' => 'User', 'foreign_key' => $_POST['key']),
+            $_POST['key2']
+        );
+    }
+}
+```
+
+<Warning>
+  Be careful when modifying permissions! Removing critical permissions can prevent users from performing their job duties. Always test permission changes with non-critical users first.
+</Warning>
+
+## ACL Structure
+
+The ACL (Access Control List) is a hierarchical tree structure that maps all available actions in the system.
+
+### Building the ACL
+
+The system can automatically build the ACL structure by scanning all controllers:
+
+```php
+// From app_controller.php:29-106 (simplified)
+function build_acl() {
+    // Create root node for controllers
+    $root = $aco->node('controllers');
+    
+    // Get all controllers in the application
+    $Controllers = Configure::listObjects('controller');
+    
+    // For each controller
+    foreach ($Controllers as $ctrlName) {
+        // Get all public methods (actions)
+        $methods = get_class_methods($ctrlClass);
+        
+        // Create ACO node for controller
+        $aco->create(array(
+            'parent_id' => $root['Aco']['id'],
+            'alias' => $ctrlName
+        ));
+        
+        // Create ACO node for each action
+        foreach ($methods as $method) {
+            $aco->create(array(
+                'parent_id' => $controllerNode['Aco']['id'],
+                'alias' => $method
+            ));
+        }
+    }
+}
+```
+
+### ACL Hierarchy Example
+
+```
+controllers/
+├── Users/
+│   ├── index1
+│   ├── add
+│   ├── edit
+│   ├── delete
+│   ├── permission
+│   └── logout
+├── Denuncias/
+│   ├── index
+│   ├── add
+│   ├── denunciar
+│   └── responder_denuncia
+└── Galleries/
+    ├── index
+    ├── add
+    ├── edit
+    ├── delete
+    └── activa
+```
+
+## Public Access Actions
+
+Certain actions are available without authentication:
+
+### Globally Allowed Actions
+
+```php
+// From app_controller.php:16
+$this->Auth->allow('add_vendedor','consulta_codigo','registrado','display');
+```
+
+- **add_vendedor**: Vendor registration
+- **consulta_codigo**: Access code validation
+- **registrado**: Registration confirmation
+- **display**: Static page display
+
+### Controller-Specific Public Actions
+
+```php
+// From denuncias_controller.php:14
+$this->Auth->allowedActions = array(
+    'add','consulta','denunciar','fin_denunciar',
+    'denunciar_promo','registro_reclamo',
+    'registro_denuncia','detallemensajepromo'
+);
+```
+
+These complaint-related actions are accessible to the public, allowing customers to submit complaints without logging in.
+
+## Permission Inheritance
+
+Users inherit permissions from their assigned group, but can also have individual overrides.
+
+### Group Permissions
+
+When a user is assigned to a group, they inherit that group's permissions:
+
+```php
+// From users_controller.php:80-90
+$oldgroupid = $this->User->field('groups_idgrupos');
+
+if ($oldgroupid !== $this->data['User']['groups_idgrupos']) {
+    $aro =& $this->Acl->Aro;
+    $user = $aro->findByForeignKeyAndModel($id_usuario, 'User');
+    $group = $aro->findByForeignKeyAndModel($groups_idgrupos, 'Group');
+    
+    // Update ARO parent (group membership)
+    $aro->id = $user['Aro']['id'];
+    $aro->save(array('parent_id' => $group['Aro']['id']));
+}
+```
+
+### Individual Overrides
+
+Permissions can be granted or denied at the individual user level, overriding group permissions for specific actions.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Principle of Least Privilege" icon="lock">
+    Only grant users the minimum permissions needed to do their job. Don't give admin access unless absolutely necessary.
+  </Card>
+  
+  <Card title="Regular Audits" icon="magnifying-glass">
+    Periodically review user permissions to ensure they're still appropriate. Remove access for former employees immediately.
+  </Card>
+  
+  <Card title="Group-Based Permissions" icon="users">
+    Use groups for common permission sets instead of managing each user individually. This makes administration much easier.
+  </Card>
+  
+  <Card title="Test Before Deploy" icon="flask">
+    Always test permission changes with a test user before applying to production accounts.
+  </Card>
+</CardGroup>
+
+## Troubleshooting Access Issues
+
+<AccordionGroup>
+  <Accordion title="User can't access a feature they need">
+    **Diagnosis**:
+    - Check if the user is in the correct group
+    - Verify the group has permission for that action
+    - Look for individual permission denials
+    
+    **Solution**:
+    - Use the permission management interface to grant the specific action
+    - Or move the user to a group with appropriate permissions
+  </Accordion>
+  
+  <Accordion title="Location filtering showing wrong data">
+    **Diagnosis**:
+    - Check the user's `locale_id_local` value
+    - Verify the data has correct location associations
+    
+    **Solution**:
+    - Update the user's assigned location if incorrect
+    - Ensure data records have proper `locale_id_local` values
+  </Accordion>
+  
+  <Accordion title="Public pages requiring login">
+    **Diagnosis**:
+    - Action not in the allowed list
+    - `beforeFilter()` not configured correctly
+    
+    **Solution**:
+    - Add the action to `$this->Auth->allow()` array
+    - Check controller's `beforeFilter()` method
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/guide/authentication">
+    Learn about login and password management
+  </Card>
+  <Card title="Submitting Complaints" icon="file-circle-exclamation" href="/guide/submitting-complaints">
+    Start working with complaints and reports
+  </Card>
+</CardGroup>

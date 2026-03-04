@@ -1,0 +1,410 @@
+---
+title: "User Management"
+description: "Creating users, assigning groups, managing permissions, and password policies in Yoneily"
+---
+
+# User Management
+
+The Yoneily system provides comprehensive user management capabilities including user creation, group assignment, permission management, and password policies.
+
+## User Database Schema
+
+Users are stored in the `users` table with the following structure:
+
+```sql
+CREATE TABLE `users` (
+  `id_usuario` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(45) DEFAULT NULL,
+  `email_usuario` varchar(45) DEFAULT NULL,
+  `password` varchar(45) DEFAULT NULL,
+  `perfil_usuario` varchar(255) DEFAULT NULL,
+  `fecharreg_usuario` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `groups_idgrupos` int(11) NOT NULL,
+  PRIMARY KEY (`id_usuario`),
+  KEY `fk_users_groups1` (`groups_idgrupos`)
+);
+```
+
+<Note>
+  Passwords are hashed using SHA-1 encryption for security.
+</Note>
+
+## Creating Users
+
+### Via Admin Interface
+
+<Steps>
+  <Step title="Access User Management">
+    Navigate to the user management section:
+    ```
+    /users/index1
+    ```
+  </Step>
+
+  <Step title="Click Add User">
+    Navigate to the add user form:
+    ```
+    /users/add
+    ```
+  </Step>
+
+  <Step title="Fill User Information">
+    Required fields:
+    - **Username**: Unique login identifier
+    - **Email**: User email address
+    - **Password**: User password (will be hashed)
+    - **Profile Name**: Full name or display name
+    - **Group**: Select from available groups
+  </Step>
+
+  <Step title="Submit Form">
+    The system will:
+    - Hash the password using SHA-1
+    - Create user record in database
+    - Create ARO (Access Request Object) entry for ACL
+    - Display success message
+  </Step>
+</Steps>
+
+### User Controller Code
+
+From `app/controllers/users_controller.php`:
+
+```php
+function add() {
+    $this->layout = 'admin';
+    $this->set('groups', $this->Group->find('list', 
+        array('fields' => 'Group.name_grupos')));
+    
+    if (!empty($this->data)) {
+        if ($this->User->save($this->data)) {
+            $this->Session->setFlash(
+                __('El usuario ha sido registrado', null), 
+                'default', 
+                array('class' => 'flash_good')
+            );
+            $this->redirect(array('action' => 'index1'));
+        }
+    }
+}
+```
+
+## User Groups
+
+### Available Groups
+
+Groups are defined in the `groups` table:
+
+```sql
+CREATE TABLE `groups` (
+  `idgrupos` int(11) NOT NULL AUTO_INCREMENT,
+  `name_grupos` varchar(45) DEFAULT NULL,
+  `titulo_grupos` varchar(45) DEFAULT NULL,
+  `fechacrea_grupo` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`idgrupos`)
+);
+```
+
+Default group:
+- **ID**: 1
+- **Name**: administradores
+- **Title**: admin
+
+### Assigning Users to Groups
+
+When creating or editing a user, select the appropriate group. The group assignment determines:
+- Base permissions inherited from group ACL
+- Access to specific controllers and actions
+- UI elements and menu options displayed
+
+<Note>
+  Users inherit all permissions from their assigned group, but individual permissions can be customized per user.
+</Note>
+
+## Editing Users
+
+### Update User Information
+
+Navigate to:
+```
+/users/edit/{user_id}
+```
+
+Editable fields:
+- Username
+- Email address
+- Profile name
+- Group assignment
+
+### Group Change Handling
+
+When changing a user's group, the system automatically updates the ARO tree:
+
+```php
+function edit($id) {
+    $this->layout = 'admin';
+    $this->User->id_usuario = $id;
+    $this->set('groups', $this->Group->find('list', 
+        array('fields' => 'Group.name_grupos')));
+    
+    if(empty($this->data)) {
+        $this->data = $this->User->read(null, $id);
+    } else {
+        if($this->User->save($this->data)) {
+            $this->Session->setFlash('La edición fue hecha con exito.');
+            $this->redirect(array('action' => 'index1'));
+        }
+    }
+
+    // Update ARO tree if group changed
+    $oldgroupid = $this->User->field('groups_idgrupos');
+    if ($oldgroupid !== $this->data['User']['groups_idgrupos']) {
+        $aro =& $this->Acl->Aro;
+        $user = $aro->findByForeignKeyAndModel(
+            $this->data['User']['id_usuario'], 'User');
+        $group = $aro->findByForeignKeyAndModel(
+            $this->data['User']['groups_idgrupos'], 'Group');
+        
+        $aro->id = $user['Aro']['id'];
+        $aro->save(array('parent_id' => $group['Aro']['id']));
+    }
+}
+```
+
+## Password Management
+
+### Password Hashing
+
+Passwords are hashed using CakePHP's Auth component with SHA-1:
+
+```php
+$this->data['User']['password'] = Security::hash(
+    $this->data['User']['pass'], 
+    null, 
+    true
+);
+```
+
+### Changing User Passwords
+
+Navigate to:
+```
+/users/edit_pass/{user_id}
+```
+
+<Steps>
+  <Step title="Verify Old Password">
+    User must enter their current password for verification:
+    ```php
+    $result = $this->User->find('all', array(
+        'fields' => array('User.password'), 
+        'conditions' => array(
+            'User.id_usuario' => $this->data["User"]["id_usuario"], 
+            'User.password' => $this->Auth->password(
+                $this->data["User"]["oldpass"]
+            )
+        )
+    ));
+    ```
+  </Step>
+
+  <Step title="Confirm New Password">
+    New password must be entered twice and match:
+    ```php
+    if ($this->data["User"]["newpass"] == 
+        $this->data["User"]["newpassconfirm"]) {
+        // Passwords match
+    } else {
+        $this->Session->setFlash('Los password no son iguales.');
+    }
+    ```
+  </Step>
+
+  <Step title="Update Password">
+    Hash and save new password:
+    ```php
+    $this->User->read(null, $id);
+    $this->User->set(array(
+        'password' => $this->Auth->password(
+            $this->data["User"]["newpass"]
+        )
+    ));
+    $this->User->save();
+    ```
+  </Step>
+</Steps>
+
+### Password Policy Recommendations
+
+<Warning>
+  Implement strong password policies to protect user accounts.
+</Warning>
+
+**Recommended Requirements**:
+- Minimum 8 characters
+- Mix of uppercase and lowercase letters
+- At least one number
+- At least one special character
+- No common dictionary words
+- Different from previous passwords
+
+## User Permissions
+
+### Individual User Permissions
+
+Access individual permission management:
+```
+/users/permission/{user_id}
+```
+
+The permission interface displays:
+- All available controllers and actions
+- Current permission status (allowed/denied)
+- Visual indicators for each permission level
+
+### Permission Controller Code
+
+```php
+function permission($id = null) {
+    $this->layout = 'admin';
+    if($id != null) {
+        $this->User->id_usuario = $id;
+        $this->loadModel('Aco');
+        
+        $parents = $this->Aco->find('list', array(
+            'fields' => 'Aco.alias',
+            'conditions' => array(
+                'Aco.parent_id' => '1',
+                'Aco.id >=' => '10'
+            )
+        ));
+        
+        $child = array();
+        $permiso = array();
+        
+        foreach($parents as $idparent => $alias) {
+            $child[$idparent] = $this->Aco->find('list', array(
+                'fields' => 'Aco.alias',
+                'conditions' => array('Aco.parent_id' => $idparent)
+            ));
+            
+            foreach($child[$idparent] as $idhijo => $aliashijo) {
+                $permiso[$idhijo] = $this->Acl->check(
+                    array('model' => 'User', 'foreign_key' => $id), 
+                    $aliashijo
+                );
+            }
+        }
+        
+        $this->set('iduser', $id);
+        $this->set('padre', $parents);
+        $this->set('hijo', $child);
+        $this->set('permiso', $permiso);
+    }
+}
+```
+
+### AJAX Permission Updates
+
+Permissions can be toggled via AJAX:
+
+```php
+function ajax_load() {
+    $this->layout = 'Ajax';
+    $this->set('iduser', $_POST['key']);
+    $this->set('hijoalias', $_POST['key2']);
+    
+    if($_POST['key3'] == 0) {
+        $permitido = 1;
+        $this->Acl->allow(
+            array('model' => 'User', 'foreign_key' => $_POST['key']), 
+            $_POST['key2']
+        );
+        $this->set('permitido', $permitido);
+    } else {
+        $permitido = 0;
+        $this->Acl->deny(
+            array('model' => 'User', 'foreign_key' => $_POST['key']), 
+            $_POST['key2']
+        );
+        $this->set('permitido', $permitido);
+    }
+}
+```
+
+## Deleting Users
+
+Navigate to:
+```
+/users/delete/{user_id}
+```
+
+<Warning>
+  Deleting a user is permanent and cannot be undone. Consider deactivating users instead of deleting them.
+</Warning>
+
+```php
+function delete($id) {
+    $this->layout = 'admin';
+    $this->User->delete($id);
+    $this->Session->setFlash(
+        __('El usuario ha sido eliminado', null), 
+        'default', 
+        array('class' => 'flash_good')
+    );
+    $this->redirect(array('action'=>'index1'));
+}
+```
+
+## Authentication Configuration
+
+From `app/app_controller.php`:
+
+```php
+function beforeFilter() {
+    parent::beforeFilter();
+    
+    $this->Auth->loginAction = array(
+        'controller' => 'users', 
+        'action' => 'login'
+    );
+    $this->Auth->allow('add_vendedor', 'consulta_codigo', 
+        'registrado', 'display');
+    $this->Auth->loginRedirect = array(
+        'controller' => 'users', 
+        'action' => 'home'
+    );
+    $this->Auth->loginError = 'El Usuario o el Password no son válidos por favor intenta nuevamente';
+    $this->Auth->authorize = 'controller';
+}
+```
+
+## Best Practices
+
+### User Creation
+1. Always assign users to appropriate groups
+2. Use descriptive profile names for easy identification
+3. Validate email addresses before creation
+4. Send welcome emails with temporary passwords
+5. Force password change on first login
+
+### Security
+1. Regularly audit user accounts
+2. Remove inactive users
+3. Monitor failed login attempts
+4. Implement account lockout policies
+5. Use HTTPS for all authentication
+6. Enable two-factor authentication when possible
+
+### Permission Management
+1. Follow principle of least privilege
+2. Use groups for common permission sets
+3. Document custom user permissions
+4. Regularly review and update permissions
+5. Test permissions after changes
+
+## Related Documentation
+
+- [ACL Configuration](/admin/acl) - Learn about access control lists
+- [Database Schema](/admin/database) - Understanding the user data structure
+- [Initial Setup](/admin/setup) - System configuration and security settings

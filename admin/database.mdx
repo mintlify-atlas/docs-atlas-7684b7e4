@@ -1,0 +1,644 @@
+---
+title: "Database Schema"
+description: "Comprehensive overview of the database schema, key tables, relationships, and backup procedures"
+---
+
+# Database Schema
+
+The Yoneily complaint and report management system uses a MySQL database named `magdaleno` with multiple interconnected tables for managing users, complaints, galleries, locations, and access control.
+
+## Database Configuration
+
+From `app/config/database.php`:
+
+```php
+class DATABASE_CONFIG {
+    var $default = array(
+        'driver' => 'mysql',
+        'persistent' => false,
+        'host' => 'localhost',
+        'login' => 'root',
+        'password' => '1234',
+        'database' => 'magdaleno',
+        'prefix' => '',
+        'encoding' => 'utf-8',
+    );
+}
+```
+
+<Warning>
+  Change the default database password in production environments!
+</Warning>
+
+## Key Tables Overview
+
+### User Management Tables
+
+#### users
+Stores user account information and authentication credentials.
+
+```sql
+CREATE TABLE `users` (
+  `id_usuario` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(45) DEFAULT NULL,
+  `email_usuario` varchar(45) DEFAULT NULL,
+  `password` varchar(45) DEFAULT NULL,
+  `perfil_usuario` varchar(255) DEFAULT NULL,
+  `fecharreg_usuario` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `groups_idgrupos` int(11) NOT NULL,
+  PRIMARY KEY (`id_usuario`),
+  KEY `fk_users_groups1` (`groups_idgrupos`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+
+**Key Fields**:
+- `id_usuario`: Primary key, unique user identifier
+- `username`: Login username (unique)
+- `password`: SHA-1 hashed password
+- `groups_idgrupos`: Foreign key to groups table
+- `fecharreg_usuario`: Timestamp of user creation
+
+<Note>
+  Passwords are stored as SHA-1 hashes for security.
+</Note>
+
+#### groups
+Defines user groups for permission management.
+
+```sql
+CREATE TABLE `groups` (
+  `idgrupos` int(11) NOT NULL AUTO_INCREMENT,
+  `name_grupos` varchar(45) DEFAULT NULL,
+  `titulo_grupos` varchar(45) DEFAULT NULL,
+  `fechacrea_grupo` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`idgrupos`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+
+**Default Data**:
+```sql
+INSERT INTO `groups` VALUES (1, 'administradores', 'admin', CURRENT_TIMESTAMP);
+```
+
+### Access Control Tables (ACL)
+
+#### acos (Access Control Objects)
+Defines what can be accessed (controllers and actions).
+
+```sql
+CREATE TABLE `acos` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `parent_id` int(10) DEFAULT NULL,
+  `model` varchar(255) DEFAULT '',
+  `foreign_key` int(10) unsigned DEFAULT NULL,
+  `alias` varchar(255) DEFAULT '',
+  `lft` int(10) DEFAULT NULL,
+  `rght` int(10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+**Structure**: Hierarchical tree using Modified Preorder Tree Traversal (MPTT)
+- Root node: `controllers`
+- Level 1: Controller names (Users, Galleries, Groups, etc.)
+- Level 2: Action names (index, add, edit, delete, etc.)
+
+#### aros (Access Request Objects)
+Defines who requests access (users and groups).
+
+```sql
+CREATE TABLE `aros` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `parent_id` int(10) DEFAULT NULL,
+  `model` varchar(255) DEFAULT '',
+  `foreign_key` int(10) unsigned DEFAULT NULL,
+  `alias` varchar(255) DEFAULT '',
+  `lft` int(10) DEFAULT NULL,
+  `rght` int(10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+**Structure**: Hierarchical tree where:
+- Groups are parent nodes
+- Users are child nodes under their group
+
+#### aros_acos
+Links AROs to ACOs with specific permissions.
+
+```sql
+CREATE TABLE `aros_acos` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `aro_id` int(10) unsigned NOT NULL,
+  `aco_id` int(10) unsigned NOT NULL,
+  `_create` char(2) NOT NULL DEFAULT '0',
+  `_read` char(2) NOT NULL DEFAULT '0',
+  `_update` char(2) NOT NULL DEFAULT '0',
+  `_delete` char(2) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+**Permission Values**:
+- `1`: Explicitly allowed
+- `0`: Explicitly denied  
+- `-1`: Inherit from parent
+
+### Gallery and Media Tables
+
+#### galleries
+Stores photo galleries and media collections.
+
+```sql
+CREATE TABLE `galleries` (
+  `id_galeria` int(11) NOT NULL AUTO_INCREMENT,
+  `texto_galeria` varchar(255) DEFAULT NULL,
+  `publicar` int(11) NOT NULL,
+  `descripcion` text,
+  `thumbnails` text NOT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  `fechacre_galeria` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `usuario_id_usuario` int(11) NOT NULL,
+  `excluir` tinyint(4) NOT NULL DEFAULT '0',
+  `claves` varchar(255) NOT NULL,
+  PRIMARY KEY (`id_galeria`),
+  KEY `fk_galeria_usuario1` (`usuario_id_usuario`),
+  KEY `url` (`url`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+```
+
+**Key Fields**:
+- `texto_galeria`: Gallery title
+- `publicar`: Publication status (1=published, 0=draft)
+- `url`: SEO-friendly URL slug
+- `excluir`: Exclusion flag
+- `usuario_id_usuario`: Owner user ID
+
+#### archivos
+Stores uploaded files and media.
+
+```sql
+CREATE TABLE `archivos` (
+  `id_file` int(11) NOT NULL AUTO_INCREMENT,
+  `nombre_file` varchar(45) DEFAULT NULL,
+  `vidthumbnail` varchar(255) DEFAULT NULL,
+  `embedthumb` varchar(255) DEFAULT NULL,
+  `viddesta` varchar(255) DEFAULT NULL,
+  `nombre_gal` varchar(255) DEFAULT NULL,
+  `nombre_thumb` varchar(255) DEFAULT NULL,
+  `dir` varchar(255) NOT NULL,
+  `fechacre_file` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `mimetype` varchar(45) DEFAULT NULL,
+  `tipodispositivo_file` varchar(45) DEFAULT NULL,
+  `usuario_id_usuario` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id_file`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+
+**Key Fields**:
+- `dir`: File storage path
+- `mimetype`: MIME type of uploaded file
+- `embedthumb`: Thumbnail for embedded content
+- `usuario_id_usuario`: Uploader user ID
+
+#### archivos_galleries
+Many-to-many relationship between files and galleries.
+
+```sql
+CREATE TABLE `archivos_galleries` (
+  `files_id_file` int(11) NOT NULL,
+  `galerias_id_galeria` int(11) NOT NULL,
+  PRIMARY KEY (`files_id_file`,`galerias_id_galeria`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+
+### Location Tables
+
+#### locales
+This table name suggests a location/locale management system (exact schema not provided in source files, but referenced in users_controller.php).
+
+**Referenced in Code**:
+```php
+$local = $this->data['User']['locale_id_local'];
+$codigo = $this->data['User']['codigo_uno'];
+if(!empty($local)) {
+    $this->Locale->updateAll(
+        array('Locale.codigo' => "'$codigo'"), 
+        array('Locale.id_local' => $local)
+    );
+}
+```
+
+#### paises (Countries)
+Stores country information for international support.
+
+```sql
+CREATE TABLE `paises` (
+  `paisId` int(11) NOT NULL AUTO_INCREMENT,
+  `isoNum` smallint(6) DEFAULT NULL,
+  `iso2` char(2) DEFAULT NULL,
+  `iso3` char(3) DEFAULT NULL,
+  `nombre` varchar(80) DEFAULT NULL,
+  `codtel` int(11) DEFAULT NULL,
+  `prioridad` int(11) NOT NULL,
+  PRIMARY KEY (`paisId`),
+  UNIQUE KEY `codtel` (`codtel`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+```
+
+**Includes**: 240 countries with ISO codes and telephone codes
+
+#### estados (States)
+Venezuelan states/provinces.
+
+```sql
+CREATE TABLE `estados` (
+  `estadoId` int(8) NOT NULL DEFAULT '0',
+  `nombre` varchar(50) NOT NULL,
+  `ord` int(8) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`estadoId`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+**Contains**: 24 Venezuelan states
+
+#### ciudades (Cities)
+Venezuelan cities within states.
+
+```sql
+CREATE TABLE `ciudades` (
+  `ciudadId` int(8) NOT NULL AUTO_INCREMENT,
+  `nombre` varchar(100) NOT NULL,
+  `estadoId` int(8) NOT NULL DEFAULT '0',
+  `ord` int(8) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`ciudadId`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+```
+
+**Contains**: 554+ Venezuelan cities
+
+### Campaign & Registration Tables
+
+#### campanas
+Manages fundraising or awareness campaigns.
+
+```sql
+CREATE TABLE `campanas` (
+  `id_campana` int(11) NOT NULL AUTO_INCREMENT,
+  `pais_campana` varchar(255) DEFAULT NULL,
+  `descripcion` text,
+  `monto` double DEFAULT NULL,
+  `fecha` varchar(25) DEFAULT NULL,
+  `activo` int(11) DEFAULT NULL,
+  `idpais` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id_campana`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+```
+
+**Key Fields**:
+- `pais_campana`: Target country
+- `monto`: Campaign monetary goal
+- `activo`: Active status flag
+
+#### registers
+Public user registrations (separate from admin users).
+
+```sql
+CREATE TABLE `registers` (
+  `idregistro` int(11) NOT NULL AUTO_INCREMENT,
+  `nombreape` varchar(45) DEFAULT NULL,
+  `sexo` char(1) DEFAULT NULL,
+  `fechanac` date DEFAULT NULL,
+  `direccion` varchar(45) DEFAULT NULL,
+  `pais` varchar(45) DEFAULT NULL,
+  `correo` varchar(45) DEFAULT NULL,
+  `telefono` bigint(20) DEFAULT NULL,
+  `password` varchar(45) DEFAULT NULL,
+  `rpass` varchar(255) DEFAULT NULL,
+  `estado` varchar(45) DEFAULT NULL,
+  `ciudad` varchar(255) DEFAULT NULL,
+  `codigo` int(11) DEFAULT NULL,
+  `tecon` int(255) DEFAULT NULL,
+  `scor` int(11) DEFAULT NULL,
+  `cuentatwitter` varchar(255) DEFAULT NULL,
+  `fbookid` varchar(255) NOT NULL,
+  `fblinkperfil` varchar(255) DEFAULT NULL,
+  `foto` varchar(45) DEFAULT NULL,
+  `pais_campana` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`idregistro`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+```
+
+**Social Integration**:
+- Twitter account linking
+- Facebook profile integration
+
+### Content Management Tables
+
+#### categories
+Hierarchical content categorization.
+
+```sql
+CREATE TABLE `categories` (
+  `id_categorias` int(11) NOT NULL AUTO_INCREMENT,
+  `parent_id` int(11) DEFAULT NULL,
+  `nombre_categorias` varchar(45) DEFAULT NULL,
+  `link_categorias` varchar(45) DEFAULT NULL,
+  `estilo_categorias` varchar(45) DEFAULT NULL,
+  `fechacre_categorias` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `status_categorias` int(11) DEFAULT NULL,
+  `usuario_id_usuario` int(11) NOT NULL,
+  `categorias_id_categorias` int(11) NOT NULL,
+  PRIMARY KEY (`id_categorias`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+```
+
+**Default Categories**: música, tecnología, videojuegos, cine, eventos, galería
+
+#### videos
+Video content management.
+
+```sql
+CREATE TABLE `videos` (
+  `id_videos` int(11) NOT NULL AUTO_INCREMENT,
+  `videoembed` longtext NOT NULL,
+  `titulo_video` varchar(255) NOT NULL,
+  `descripcion` text,
+  `etiqueta` varchar(255) DEFAULT NULL,
+  `destacado` varchar(255) NOT NULL,
+  `url` varchar(255) DEFAULT NULL,
+  `fechacre_videos` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `usuario_id_usuario` int(11) NOT NULL,
+  `archivos_id_file` int(11) DEFAULT NULL,
+  `excluir` tinyint(4) NOT NULL DEFAULT '0',
+  `video_home` tinyint(1) NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id_videos`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+```
+
+**Features**:
+- Embedded video support
+- SEO-friendly URLs
+- Homepage feature flag
+- Tags/labels system
+
+## Database Relationships
+
+### Entity Relationship Diagram
+
+```
+groups (1) ──< (N) users
+    │
+    └──< (N) aros
+
+users (1) ──< (N) galleries
+      │
+      └──< (N) archivos
+      │
+      └──< (N) aros
+
+galleries (N) ──< (M) >── archivos
+              (via archivos_galleries)
+
+paises (1) ──< (N) estados (1) ──< (N) ciudades
+
+aros (N) ──< (M) >── acos
+         (via aros_acos)
+```
+
+## Storage Engines
+
+**InnoDB Tables** (Transactional):
+- users
+- groups  
+- galleries
+- archivos
+- archivos_galleries
+- categories
+- videos
+- campanas
+- registers
+
+**MyISAM Tables** (Non-transactional):
+- acos
+- aros
+- aros_acos
+- paises
+- estados
+- ciudades
+
+<Note>
+  MyISAM is used for ACL tables and reference data for better read performance. InnoDB is used for transactional data requiring referential integrity.
+</Note>
+
+## Character Encoding
+
+**UTF-8 Tables**:
+- users, groups, archivos, categories
+- Supports international characters
+
+**Latin1 Tables**:
+- galleries, videos, paises, campanas, registers
+
+<Warning>
+  Mixed character encodings can cause issues. Consider migrating all tables to UTF-8 for consistency.
+</Warning>
+
+## Backup Procedures
+
+### Manual Backup
+
+**Full Database Backup**:
+```bash
+mysqldump -u root -p magdaleno > backup_$(date +%Y%m%d_%H%M%S).sql
+```
+
+**Compressed Backup**:
+```bash
+mysqldump -u root -p magdaleno | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
+```
+
+**Backup Specific Tables**:
+```bash
+mysqldump -u root -p magdaleno users groups aros acos aros_acos > acl_backup.sql
+```
+
+### Automated Backup Script
+
+```bash
+#!/bin/bash
+# backup_magdaleno.sh
+
+DB_NAME="magdaleno"
+DB_USER="root"
+DB_PASS="your_password"
+BACKUP_DIR="/var/backups/mysql"
+DATE=$(date +%Y%m%d_%H%M%S)
+
+mkdir -p $BACKUP_DIR
+
+# Full backup
+mysqldump -u $DB_USER -p$DB_PASS $DB_NAME | gzip > $BACKUP_DIR/magdaleno_$DATE.sql.gz
+
+# Keep only last 30 days
+find $BACKUP_DIR -name "magdaleno_*.sql.gz" -mtime +30 -delete
+
+echo "Backup completed: magdaleno_$DATE.sql.gz"
+```
+
+**Schedule with Cron**:
+```cron
+# Daily backup at 2 AM
+0 2 * * * /usr/local/bin/backup_magdaleno.sh
+```
+
+### Restore from Backup
+
+**Restore Full Database**:
+```bash
+mysql -u root -p magdaleno < backup_20260304_120000.sql
+```
+
+**Restore Compressed Backup**:
+```bash
+gunzip < backup_20260304_120000.sql.gz | mysql -u root -p magdaleno
+```
+
+**Restore Specific Tables**:
+```bash
+mysql -u root -p magdaleno < acl_backup.sql
+```
+
+<Warning>
+  Always test restore procedures on a development environment before restoring to production.
+</Warning>
+
+## Database Maintenance
+
+### Optimize Tables
+
+```sql
+-- Optimize all tables
+USE magdaleno;
+SHOW TABLES;
+OPTIMIZE TABLE users, groups, galleries, archivos;
+```
+
+### Check Table Integrity
+
+```sql
+CHECK TABLE users;
+CHECK TABLE galleries;
+CHECK TABLE acos;
+```
+
+### Repair Tables (MyISAM only)
+
+```sql
+REPAIR TABLE acos;
+REPAIR TABLE aros;
+REPAIR TABLE aros_acos;
+```
+
+### Analyze Tables
+
+```sql
+ANALYZE TABLE users;
+ANALYZE TABLE galleries;
+```
+
+## Performance Optimization
+
+### Indexes
+
+Existing indexes from schema:
+- Primary keys on all tables
+- Foreign key indexes (fk_users_groups1, fk_galeria_usuario1)
+- URL index on galleries table
+- Composite primary key on junction tables
+
+**Add Custom Indexes**:
+```sql
+-- Speed up user lookups
+CREATE INDEX idx_username ON users(username);
+CREATE INDEX idx_email ON users(email_usuario);
+
+-- Speed up gallery queries
+CREATE INDEX idx_publicar ON galleries(publicar);
+CREATE INDEX idx_fecha ON galleries(fechacre_galeria);
+```
+
+### Query Optimization
+
+**Slow Query Log**:
+```sql
+SET GLOBAL slow_query_log = 'ON';
+SET GLOBAL long_query_time = 2;
+SET GLOBAL slow_query_log_file = '/var/log/mysql/slow-queries.log';
+```
+
+### Table Statistics
+
+```sql
+-- View table sizes
+SELECT 
+    table_name,
+    ROUND(((data_length + index_length) / 1024 / 1024), 2) AS size_mb,
+    table_rows
+FROM information_schema.TABLES
+WHERE table_schema = 'magdaleno'
+ORDER BY (data_length + index_length) DESC;
+```
+
+## Security Considerations
+
+### Database User Privileges
+
+```sql
+-- Create limited privilege user
+CREATE USER 'magdaleno_app'@'localhost' IDENTIFIED BY 'strong_password';
+GRANT SELECT, INSERT, UPDATE, DELETE ON magdaleno.* TO 'magdaleno_app'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+### Password Security
+
+<Warning>
+  User passwords are stored using SHA-1 hashing. Consider upgrading to bcrypt for better security.
+</Warning>
+
+### Sensitive Data
+
+Protect these tables with extra security:
+- `users`: Contains authentication credentials
+- `registers`: Contains personal information
+- `aros_acos`: Controls access permissions
+
+## Migration Considerations
+
+### Character Set Migration
+
+```sql
+-- Convert table to UTF-8
+ALTER TABLE galleries CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+ALTER TABLE videos CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
+```
+
+### Storage Engine Conversion
+
+```sql
+-- Convert to InnoDB for better data integrity
+ALTER TABLE acos ENGINE=InnoDB;
+ALTER TABLE aros ENGINE=InnoDB;
+ALTER TABLE aros_acos ENGINE=InnoDB;
+```
+
+<Note>
+  Test engine conversions on development environment first. Converting large tables can take significant time.
+</Note>
+
+## Related Documentation
+
+- [Initial Setup](/admin/setup) - Database configuration and installation
+- [User Management](/admin/users) - Understanding user tables and relationships
+- [ACL Configuration](/admin/acl) - Working with ACL tables (aros, acos, aros_acos)

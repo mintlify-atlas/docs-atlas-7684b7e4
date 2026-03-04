@@ -1,0 +1,271 @@
+---
+title: User Management
+description: Role-based access control with groups, permissions, and venue-specific user management
+---
+
+# User Management
+
+Yoneily uses a sophisticated role-based access control (RBAC) system powered by CakePHP's ACL (Access Control List) component. This allows for granular permission management across different user roles and groups.
+
+## User Roles & Groups
+
+The system organizes users into groups that determine their access levels and capabilities:
+
+<CardGroup cols={2}>
+  <Card title="Administrators" icon="user-shield">
+    Full system access, can manage all venues, users, and content
+  </Card>
+  <Card title="Venue Managers" icon="store">
+    Manage their assigned venue's products, promotions, and complaints
+  </Card>
+  <Card title="Venue Staff" icon="user-tie">
+    Limited access to specific features within their venue
+  </Card>
+  <Card title="Customers" icon="user">
+    Browse products, submit complaints, and track orders
+  </Card>
+</CardGroup>
+
+## Creating Users
+
+### Adding Admin Users
+
+Administrators can create new user accounts with specific group assignments:
+
+1. Navigate to Users > Add User
+2. Fill in required information:
+   - Username (minimum 4 characters)
+   - Email address
+   - Profile name
+   - Group assignment
+3. Set initial password
+4. Save the user account
+
+The system automatically:
+- Hashes passwords using CakePHP's Security component
+- Creates ACL entries for permission management
+- Links users to their assigned group's permissions
+
+<Note>
+  Usernames must be at least 4 characters long and unique across the system.
+</Note>
+
+### Registering Venue Staff
+
+Venue staff can be registered with venue-specific access:
+
+1. Use the vendor registration form
+2. Provide venue details and access code
+3. Enter staff member information:
+   - Full name
+   - Contact information
+   - Login credentials
+4. Verify venue code
+5. Complete registration
+
+The registration process:
+- Validates the venue access code
+- Associates the user with the specific venue
+- Sets appropriate group permissions
+- Creates the user account
+
+<Info>
+  Each venue has a unique access code that controls who can register as staff for that location.
+</Info>
+
+## Permission Management
+
+### Group Permissions
+
+Yoneily uses a hierarchical permission system where:
+
+- **Groups** define role templates with default permissions
+- **Users** inherit permissions from their assigned group
+- **Individual overrides** can grant or deny specific permissions per user
+
+### Setting Group Permissions
+
+Administrators can configure permissions at the group level:
+
+1. Go to Groups > Permissions
+2. Select the group to configure
+3. View available permission categories:
+   - Gallery/Product management
+   - Promotion management
+   - User administration
+   - Venue management
+   - Complaint handling
+4. Toggle permissions on/off for each action
+5. Changes apply immediately to all group members
+
+Permissions are organized by controller and action, allowing fine-grained control over what each group can do.
+
+### Individual User Permissions
+
+For special cases, administrators can override group permissions for specific users:
+
+1. Navigate to Users > Edit User > Permissions
+2. View inherited group permissions
+3. Override specific permissions:
+   - **Allow**: Grant access even if group denies it
+   - **Deny**: Remove access even if group allows it
+4. Individual permissions take precedence over group settings
+
+<Note>
+  Permission changes using the AJAX interface apply immediately without page refresh.
+</Note>
+
+## Editing Users
+
+### Updating User Information
+
+Administrators can modify user accounts:
+
+- Change username or profile information
+- Update email address
+- Modify group assignment
+- Update venue associations
+
+<Info>
+  When changing a user's group, the system automatically updates their ACL parent node to inherit the new group's permissions.
+</Info>
+
+### Changing Passwords
+
+Users can change their own passwords through a secure process:
+
+1. Go to Edit Password
+2. Enter current password for verification
+3. Enter new password (minimum 4 characters)
+4. Confirm new password
+5. Submit the change
+
+The system:
+- Verifies the current password matches
+- Checks that new passwords match
+- Hashes and stores the new password securely
+- Requires re-login with new credentials
+
+<Note>
+  Passwords are never stored in plain text - they're hashed using secure one-way encryption.
+</Note>
+
+## Venue-Specific Access
+
+### Venue Association
+
+Users can be associated with specific venues:
+
+- **Venue Staff** are assigned to one venue (stored in `locale_id_local`)
+- **Managers** may oversee multiple venues
+- **Administrators** have access to all venues
+
+Venue association controls:
+- Which products and promotions users can manage
+- Which complaints appear in their dashboard
+- What sales and inventory data they can view
+
+### Access Code System
+
+Each venue has a unique access code that:
+- Identifies the venue during staff registration
+- Prevents unauthorized staff registration
+- Links staff accounts to the correct location
+- Can be regenerated if compromised
+
+## User Listing & Management
+
+The user management interface provides:
+
+### User Directory
+- View all system users
+- See group assignments
+- Check venue associations
+- View account status
+
+### Bulk Operations
+- Export user data to PDF
+- Generate individual user reports
+- Filter by group or venue
+- Search by username or email
+
+## Security Features
+
+<AccordionGroup>
+  <Accordion title="Password Security">
+    - Minimum length requirements (4+ characters)
+    - One-way hashing using CakePHP Security::hash()
+    - Password confirmation during changes
+    - Secure password reset process
+  </Accordion>
+  
+  <Accordion title="Access Control">
+    - ACL-based permission system
+    - Role-based access control (RBAC)
+    - Granular action-level permissions
+    - Automatic permission inheritance
+  </Accordion>
+  
+  <Accordion title="Session Management">
+    - Secure session handling
+    - Automatic logout on timeout
+    - User authentication verification
+    - Login/logout tracking
+  </Accordion>
+  
+  <Accordion title="Audit Trail">
+    - User creation timestamps
+    - Last login tracking
+    - Permission change history
+    - Account modification logs
+  </Accordion>
+</AccordionGroup>
+
+## User Account Lifecycle
+
+### Account Creation
+1. User details entered
+2. Password hashed and stored
+3. Group assignment configured
+4. ACL nodes created
+5. Permissions inherited from group
+6. Account activated
+
+### Active Use
+- User logs in with credentials
+- Permissions checked for each action
+- Venue-specific data filtered
+- Activities logged
+
+### Account Deletion
+- Remove user record
+- Clean up ACL entries
+- Preserve audit trail data
+- Update associated records
+
+<Info>
+  Deleting a user doesn't remove historical data like complaints or sales records - it only removes their login access.
+</Info>
+
+## Best Practices
+
+### For Administrators
+- Use groups for common permission sets
+- Only use individual overrides when necessary
+- Review permissions regularly
+- Maintain strong password policies
+- Assign users to appropriate venues
+- Audit user access periodically
+
+### For Venue Managers
+- Keep access codes confidential
+- Review staff accounts regularly
+- Remove access for departed staff promptly
+- Report suspicious activity immediately
+
+### For All Users
+- Use strong, unique passwords
+- Change passwords regularly
+- Never share login credentials
+- Log out when finished
+- Report any unauthorized access

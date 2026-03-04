@@ -1,0 +1,279 @@
+---
+title: "Initial Setup & Configuration"
+description: "Server requirements, installation steps, and initial configuration for the Yoneily complaint management system"
+---
+
+# Initial Setup & Configuration
+
+This guide covers the complete setup process for the Yoneily complaint and report management system, a CakePHP-based application designed for handling citizen complaints and reports.
+
+## Server Requirements
+
+<Warning>
+  Ensure your server meets all requirements before proceeding with installation.
+</Warning>
+
+### PHP Requirements
+- **PHP Version**: 5.3 or higher
+- **Required Extensions**:
+  - MySQL extension
+  - mbstring extension
+  - GD library (for image processing)
+  - Session support
+
+### Database Requirements
+- **MySQL**: 5.5 or higher
+- **Character Set**: UTF-8 support
+- **Storage Engine**: InnoDB for ACL tables, MyISAM for other tables
+
+### Web Server
+- Apache 2.2+ with mod_rewrite enabled
+- Nginx (alternative, requires PHP-FPM)
+
+## Installation Steps
+
+<Steps>
+  <Step title="Extract Files">
+    Extract the application files to your web server's document root:
+    ```bash
+    unzip sistema_magdaleno.zip -d /var/www/html/
+    cd /var/www/html/sistema_magdaleno
+    ```
+  </Step>
+
+  <Step title="Configure Database">
+    Create a new MySQL database and import the schema:
+    ```bash
+    mysql -u root -p
+    CREATE DATABASE magdaleno CHARACTER SET utf8 COLLATE utf8_general_ci;
+    exit
+    mysql -u root -p magdaleno < localhost.sql
+    ```
+  </Step>
+
+  <Step title="Update Database Configuration">
+    Edit the database configuration file at `app/config/database.php`:
+    ```php
+    class DATABASE_CONFIG {
+        var $default = array(
+            'driver' => 'mysql',
+            'persistent' => false,
+            'host' => 'localhost',
+            'login' => 'root',
+            'password' => 'your_password',
+            'database' => 'magdaleno',
+            'prefix' => '',
+            'encoding' => 'utf-8',
+        );
+    }
+    ```
+  </Step>
+
+  <Step title="Set Directory Permissions">
+    Configure write permissions for CakePHP directories:
+    ```bash
+    chmod -R 777 app/tmp
+    chmod -R 777 app/webroot/files
+    chmod -R 777 app/logs
+    ```
+  </Step>
+
+  <Step title="Configure Web Server">
+    **For Apache**: Ensure `.htaccess` files are present in:
+    - Root directory (`/.htaccess`)
+    - App directory (`/app/.htaccess`)
+    - Webroot directory (`/app/webroot/.htaccess`)
+
+    **Apache Configuration Example**:
+    ```apache
+    <VirtualHost *:80>
+        ServerName yoneily.local
+        DocumentRoot /var/www/html/sistema_magdaleno/app/webroot
+        
+        <Directory /var/www/html/sistema_magdaleno/app/webroot>
+            Options Indexes FollowSymLinks
+            AllowOverride All
+            Require all granted
+        </Directory>
+    </VirtualHost>
+    ```
+  </Step>
+
+  <Step title="Verify Installation">
+    Access your application in a web browser:
+    ```
+    http://localhost/sistema_magdaleno/
+    ```
+    or
+    ```
+    http://yoneily.local/
+    ```
+  </Step>
+</Steps>
+
+## Core Configuration
+
+### Debug Mode
+
+Edit `app/config/core.php` to set the appropriate debug level:
+
+```php
+// Production Mode (no errors displayed)
+Configure::write('debug', 0);
+
+// Development Mode (errors and warnings shown)
+Configure::write('debug', 1);
+
+// Full Debug Mode (all messages and SQL output)
+Configure::write('debug', 2);
+```
+
+<Note>
+  Always set `debug` to `0` in production environments to prevent security information leakage.
+</Note>
+
+### Security Configuration
+
+Update the security salt and cipher seed in `app/config/core.php`:
+
+```php
+// Change these to unique random strings
+Configure::write('Security.salt', 'YOUR_UNIQUE_SALT_HERE');
+Configure::write('Security.cipherSeed', 'YOUR_NUMERIC_SEED_HERE');
+```
+
+<Warning>
+  Never use the default security values in production! Generate new random strings.
+</Warning>
+
+### Session Configuration
+
+Session settings from `app/config/core.php`:
+
+```php
+Configure::write('Session.save', 'php');
+Configure::write('Session.cookie', 'CAKEPHP');
+Configure::write('Session.timeout', '120');
+Configure::write('Security.level', 'medium');
+```
+
+**Security Levels**:
+- **high**: Session timeout × 10 (1200 minutes = 20 hours)
+- **medium**: Session timeout × 100 (12000 minutes = 200 hours)
+- **low**: Session timeout × 300 (36000 minutes = 600 hours)
+
+## Security Considerations
+
+### File Upload Directory
+
+Secure the file upload directories:
+
+```bash
+# Restrict access to uploaded files
+chmod 755 app/webroot/files
+chown www-data:www-data app/webroot/files
+```
+
+### Database Security
+
+1. **Use Strong Passwords**: Never use default or weak passwords for database users
+2. **Limit Privileges**: Create a dedicated database user with minimal required privileges:
+   ```sql
+   CREATE USER 'magdaleno_user'@'localhost' IDENTIFIED BY 'strong_password';
+   GRANT SELECT, INSERT, UPDATE, DELETE ON magdaleno.* TO 'magdaleno_user'@'localhost';
+   FLUSH PRIVILEGES;
+   ```
+
+### Disable Directory Listing
+
+Ensure directory listing is disabled in your Apache configuration:
+
+```apache
+Options -Indexes
+```
+
+### SSL/HTTPS
+
+<Warning>
+  Always use HTTPS in production environments to protect user credentials and sensitive data.
+</Warning>
+
+Configure SSL certificate and force HTTPS:
+
+```php
+// In app/app_controller.php beforeFilter()
+if (!isset($_SERVER['HTTPS']) || $_SERVER['HTTPS'] != 'on') {
+    $redirect = 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+    header('Location: ' . $redirect);
+    exit;
+}
+```
+
+## Initial Administrator Account
+
+The default administrator credentials are found in the database. Check `users` table:
+
+- **Username**: admin
+- **Default Group**: administradores (ID: 1)
+
+<Warning>
+  Change the default administrator password immediately after installation using the "Edit Password" feature.
+</Warning>
+
+## Routing Prefix
+
+The system uses a custom routing prefix defined in `core.php`:
+
+```php
+Configure::write('Routing.prefixes', array('bcknaciones'));
+```
+
+This enables backend URLs like:
+```
+/bcknaciones/controller/action
+```
+
+## Logging Configuration
+
+Logs are enabled by default:
+
+```php
+Configure::write('log', true);
+```
+
+Log files are stored in:
+```
+app/tmp/logs/
+```
+
+## Next Steps
+
+After completing the initial setup:
+
+1. [Configure Users](/admin/users) - Create user accounts and assign permissions
+2. [Set Up ACL](/admin/acl) - Configure access control lists
+3. [Review Database Schema](/admin/database) - Understand the data structure
+
+## Troubleshooting
+
+### Common Issues
+
+**Issue**: White screen or "Internal Server Error"
+- Check that `app/tmp` directory has write permissions
+- Enable debug mode to see error messages
+- Check Apache error logs
+
+**Issue**: CSS/JavaScript not loading
+- Verify that `mod_rewrite` is enabled in Apache
+- Check that `.htaccess` files are present
+- Clear browser cache
+
+**Issue**: Database connection errors
+- Verify database credentials in `app/config/database.php`
+- Ensure MySQL service is running
+- Check that database exists and is accessible
+
+**Issue**: Session problems
+- Check `app/tmp/sessions` directory permissions
+- Verify PHP session configuration
+- Clear session files manually if needed

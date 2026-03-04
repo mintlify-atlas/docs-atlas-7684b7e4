@@ -1,0 +1,303 @@
+---
+title: Product Galleries
+description: Upload and manage product images with inventory tracking and automatic image optimization
+---
+
+# Product Galleries
+
+The Product Gallery system allows venues to showcase their products with high-quality images, detailed descriptions, and real-time inventory management. Each product listing includes automatic image optimization and venue-specific organization.
+
+## Overview
+
+Product galleries serve as your digital catalog, displaying available items to customers and managing inventory levels across all venues.
+
+<CardGroup cols={2}>
+  <Card title="Image Management" icon="images">
+    Upload and optimize product photos with automatic resizing
+  </Card>
+  <Card title="Inventory Tracking" icon="boxes-stacked">
+    Monitor stock levels and sold quantities in real-time
+  </Card>
+  <Card title="Venue Organization" icon="store">
+    Products organized by venue location
+  </Card>
+  <Card title="SEO-Friendly URLs" icon="link">
+    Automatic URL generation from product names and keywords
+  </Card>
+</CardGroup>
+
+## Adding Products
+
+### Creating a Gallery Entry
+
+To add a new product to your gallery:
+
+1. Navigate to Galleries > Add New Product
+2. Fill in the product details:
+   - **Product Name** (`texto_galeria`) - Main product title
+   - **Keywords** (`claves`) - Search terms for better discoverability
+   - **Description** (`descripcion`) - Detailed product information
+   - **Initial Quantity** (`cantidad`) - Starting inventory count
+   - **Venue** (`locale_id_local`) - Which location sells this product
+3. Upload product image (thumbnails)
+4. Click Save
+
+The system automatically:
+- Creates multiple optimized image sizes
+- Sets available quantity equal to initial quantity
+- Initializes sold count to zero
+- Generates a SEO-friendly URL slug
+- Timestamps the creation date
+
+<Note>
+  Product names and keywords must not be empty - they're used to generate unique URLs for each product.
+</Note>
+
+### Image Upload & Processing
+
+When you upload a product image, Yoneily automatically creates three versions:
+
+#### 1. Thumbnail (124x124px)
+- Stored in: `/files/galeria/thumbnails/`
+- Used for: Product list views, search results
+- Optimization: Resized to max 124px width or height
+
+#### 2. Normal View (600x480px)
+- Stored in: `/files/galeria/normal/`
+- Used for: Product detail pages
+- Optimization: Resized to max 600px width or 480px height
+
+#### 3. Original
+- Stored in: `/files/galeria/otras/`
+- Used for: Backup and high-quality needs
+- Kept as uploaded (within size limits)
+
+<Info>
+  All images are automatically optimized to balance quality and loading speed. The system uses SimpleImage library for reliable resizing.
+</Info>
+
+### Supported Image Formats
+
+You can upload images in the following formats:
+- JPEG/JPG
+- PNG
+- GIF
+
+Additionally, the system supports multimedia files:
+- MP3 audio files
+- SWF Flash files
+- FLV video files
+
+## Managing Products
+
+### Viewing Your Products
+
+Venue staff see only products for their assigned location:
+- Filtered automatically by `locale_id_local`
+- Sorted by creation date (newest first)
+- Paginated display (10 products per page)
+
+Administrators can view products across all venues.
+
+### Editing Products
+
+To update an existing product:
+
+1. Click Edit on the product listing
+2. Modify any product details
+3. Optionally upload a new image
+4. Save changes
+
+**Important Notes:**
+- Changing quantity resets available stock and sold count
+- Uploading a new image replaces all three optimized versions
+- URL slugs are regenerated if name/keywords change
+- Editing preserves the original creation date
+
+<Note>
+  When you update the quantity, the system resets inventory tracking. Use this carefully to avoid losing sales history.
+</Note>
+
+### Inventory Management
+
+The system tracks three inventory metrics for each product:
+
+| Field | Description | Updates When |
+|-------|-------------|-------------|
+| `cantidad` | Initial quantity set by manager | Manual edit only |
+| `cantidad_existente` | Current available stock | Decremented with each sale |
+| `prod_vendidos` | Total units sold | Incremented with each sale |
+
+**Automatic Inventory Updates:**
+When a product is sold (through the sales system):
+1. `cantidad_existente` decreases by 1
+2. `prod_vendidos` increases by 1
+3. Product becomes unavailable when stock reaches 0
+
+## Publishing & Visibility
+
+### Publication Status
+
+Control whether products appear to customers:
+
+**Activate Product** (`publicar = 1`):
+- Product is visible on the public site
+- Customers can view and purchase
+- Appears in search results
+
+**Deactivate Product** (`publicar = 0`):
+- Product hidden from public view
+- Inventory preserved
+- Accessible only to venue staff
+
+Use deactivation for:
+- Seasonal items currently out of season
+- Products pending restocking
+- Items being photographed or described
+- Discontinued items you may bring back
+
+<Info>
+  Deactivating a product doesn't delete it - all data and images are preserved. You can reactivate anytime.
+</Info>
+
+## Product URLs & SEO
+
+Yoneily automatically generates SEO-friendly URLs for each product:
+
+### URL Generation Process
+
+1. Product name converted to lowercase
+2. Keywords converted to lowercase
+3. Both combined and slugified (spaces become hyphens)
+4. Special characters removed
+5. Uniqueness verified
+6. If duplicate exists, append number suffix
+
+**Example:**
+- Product Name: "Premium Coffee Beans"
+- Keywords: "coffee organic fair-trade"
+- Generated URL: `premium-coffee-beanscoffee-organic-fair-trade`
+
+If that URL exists, becomes: `premium-coffee-beanscoffee-organic-fair-trade-1`
+
+<Note>
+  URLs are permanent identifiers - changing product names creates new URLs which may affect search rankings.
+</Note>
+
+## Deleting Products
+
+To remove a product permanently:
+
+1. Click Delete on the product listing
+2. Confirm deletion
+3. Product and all associated data removed
+
+**What Gets Deleted:**
+- Product record
+- Image file references
+- Gallery associations
+- Category links
+
+**What's Preserved:**
+- Sales records referencing this product
+- Customer complaint history
+- Audit logs
+
+<Note>
+  Deletion is permanent and cannot be undone. Consider deactivating instead if you might need the product later.
+</Note>
+
+## Categories & Organization
+
+Products can be associated with categories for better organization:
+
+- Multiple categories per product
+- Category-based browsing
+- Filtered product searches
+- Venue-specific category management
+
+## Venue Search & Assignment
+
+When adding or editing products, venue assignment uses an autocomplete search:
+
+1. Start typing venue name
+2. System searches active venues matching your input
+3. Select the correct venue from results
+4. Venue ID automatically assigned
+
+**Search Filters:**
+- Only active venues (`status = 1`)
+- Searches business name (`nombre_empresa`)
+- Partial name matching supported
+
+<Info>
+  Venue staff are automatically limited to their assigned venue - they don't need to search.
+</Info>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Product Photography">
+    - Use high-quality, well-lit photos
+    - Show product from multiple angles when possible
+    - Use consistent background across products
+    - Ensure images are at least 600x480px before upload
+    - Avoid watermarks that might reduce after optimization
+  </Accordion>
+  
+  <Accordion title="Product Descriptions">
+    - Be detailed and accurate
+    - Include key features and specifications
+    - Mention any restrictions or requirements
+    - Use keywords naturally in descriptions
+    - Highlight what makes the product unique
+  </Accordion>
+  
+  <Accordion title="Inventory Management">
+    - Update quantities regularly
+    - Deactivate products before they reach zero stock
+    - Use reasonable initial quantities
+    - Monitor sold counts to identify popular items
+    - Restock best-sellers promptly
+  </Accordion>
+  
+  <Accordion title="Organization">
+    - Assign products to appropriate categories
+    - Use clear, descriptive product names
+    - Choose relevant keywords for better search
+    - Keep similar products grouped by category
+    - Regular cleanup of discontinued items
+  </Accordion>
+</AccordionGroup>
+
+## Technical Details
+
+### Database Fields
+
+- `id_galeria` - Unique product ID (primary key)
+- `texto_galeria` - Product name/title
+- `claves` - Search keywords
+- `descripcion` - Full product description
+- `thumbnails` - Image filename
+- `cantidad` - Initial quantity
+- `cantidad_existente` - Current available stock
+- `prod_vendidos` - Total sold
+- `locale_id_local` - Associated venue
+- `publicar` - Visibility status (0/1)
+- `fechacre_galeria` - Creation timestamp
+- `url` - SEO-friendly URL slug
+
+### File Upload Validation
+
+**Allowed MIME types:**
+- `image/gif`
+- `image/jpeg`
+- `image/pjpeg`
+- `image/png`
+- `audio/mpeg`
+- `application/x-shockwave-flash`
+- `video/x-flv`
+
+**Allowed extensions:**
+- Image: .jpg, .jpeg, .png, .gif (case insensitive)
+- Media: .mp3, .swf, .flv

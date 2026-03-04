@@ -1,0 +1,376 @@
+---
+title: Promotions & Campaigns
+description: Create and manage promotional campaigns with featured images and inventory tracking
+---
+
+# Promotions & Campaigns
+
+The Promotions system enables venues to create eye-catching marketing campaigns with custom imagery, descriptions, and inventory management. Promotions work similarly to products but are designed for special offers, limited-time deals, and featured items.
+
+## Overview
+
+Promotions help venues drive sales through targeted campaigns that stand out from regular product listings.
+
+<CardGroup cols={2}>
+  <Card title="Campaign Management" icon="bullhorn">
+    Create and schedule promotional campaigns
+  </Card>
+  <Card title="Featured Images" icon="image">
+    Larger hero images optimized for sliders and banners
+  </Card>
+  <Card title="Limited Inventory" icon="hourglass-half">
+    Track remaining quantities for limited offers
+  </Card>
+  <Card title="Venue-Specific" icon="location-dot">
+    Promotions tied to specific venue locations
+  </Card>
+</CardGroup>
+
+## Creating Promotions
+
+### Setting Up a Campaign
+
+To create a new promotion:
+
+1. Navigate to Promotions > Add New
+2. Enter promotion details:
+   - **Promotion Title** (`texto_promo`) - Campaign headline
+   - **Keywords** (`claves`) - Search and SEO terms
+   - **Description** (`descripcion`) - Full campaign details
+   - **Quantity Available** (`cantidad`) - Limited offer quantity
+   - **Venue** (`locale_id_local`) - Location offering the promotion
+3. Upload promotional banner image
+4. Save to activate
+
+The system automatically:
+- Creates optimized images for different display contexts
+- Initializes inventory tracking
+- Generates a unique promotional URL
+- Sets creation timestamp
+- Defaults to unpublished status for review
+
+<Note>
+  All fields are required - title, keywords, description, and venue must be filled before saving.
+</Note>
+
+### Promotional Image Optimization
+
+Promotional images are larger than product images to create more impact. The system creates three versions:
+
+#### 1. Thumbnail (450x280px)
+- Stored in: `/files/promos/thumbnails/`
+- Used for: Promotion list views, grid layouts
+- Optimization: Resized to max 450px width or 280px height
+
+#### 2. Slider Image (779x280px)
+- Stored in: `/files/promos/slider/`
+- Used for: Homepage sliders, hero banners
+- Optimization: Resized to max 779px width or 280px height
+- Perfect for featured placement
+
+#### 3. Original
+- Stored in: `/files/promos/otras/`
+- Used for: Backup and future optimization
+- Preserved as uploaded
+
+<Info>
+  Promotion images are wider than product images to work better in banner and slider contexts. Use landscape-oriented images for best results.
+</Info>
+
+### Image Requirements
+
+**Recommended Dimensions:**
+- Minimum: 779x280px
+- Aspect ratio: Approximately 2.78:1 (landscape)
+- Format: JPEG, PNG, or GIF
+
+**Supported Formats:**
+- Image: .jpg, .jpeg, .png, .gif
+- Media: .mp3, .swf, .flv (for multimedia promotions)
+
+<Note>
+  For best quality, upload images that are at least as large as the slider dimensions (779x280px). Smaller images will not be upscaled.
+</Note>
+
+## Managing Promotions
+
+### Viewing Promotions
+
+The promotions dashboard shows:
+
+**For Venue Staff:**
+- Only promotions for their assigned venue
+- Filtered by `locale_id_local`
+- Recent promotions first (newest to oldest)
+- 10 promotions per page
+
+**For Administrators:**
+- All promotions across all venues
+- Same sorting and pagination
+- Can filter by venue if needed
+
+### Editing Promotions
+
+To update an existing promotion:
+
+1. Click Edit on the promotion listing
+2. Modify campaign details as needed
+3. Optionally upload a new banner image
+4. Update quantity if restocking the offer
+5. Save changes
+
+**Important Behavior:**
+- Updating quantity resets inventory tracking
+- New images replace all optimized versions
+- URL slug regenerates if title/keywords change
+- Creation date remains unchanged
+
+<Info>
+  Like products, updating the quantity field resets both available stock and sold count to zero. Use this for new campaign phases.
+</Info>
+
+## Inventory & Availability
+
+Promotions include inventory management for limited-time offers:
+
+### Inventory Tracking
+
+| Field | Purpose | Updated When |
+|-------|---------|-------------|
+| `cantidad` | Initial offer quantity | Manual update only |
+| `cantidad_existente` | Remaining available | Decrements with sales |
+| `prod_vendidos` | Total claimed/sold | Increments with sales |
+
+### Stock Management
+
+**When a promotion is claimed:**
+1. System checks `cantidad_existente > 0`
+2. If available, reduces stock by 1
+3. Increases `prod_vendidos` by 1
+4. Promotion becomes unavailable at zero stock
+
+**Out of Stock Behavior:**
+- Promotion remains visible but marked unavailable
+- Customers cannot claim out-of-stock promotions
+- Staff can restock by editing quantity
+
+<Note>
+  Unlike products, promotions often have much lower quantities to create urgency. Monitor stock levels closely during active campaigns.
+</Note>
+
+## Publication & Visibility
+
+### Publishing Controls
+
+Manage whether promotions appear to customers:
+
+**Activate** (`publicar = 1`):
+- Promotion visible on public site
+- Appears in sliders and featured sections
+- Customers can view and claim offer
+- Shows in promotional listings
+
+**Deactivate** (`publicar = 0`):
+- Hidden from public view
+- Inventory and data preserved
+- Only visible to venue staff
+- Can be reactivated anytime
+
+### When to Deactivate
+
+<AccordionGroup>
+  <Accordion title="Before Launch">
+    Keep promotions deactivated while:
+    - Finalizing campaign details
+    - Reviewing images and copy
+    - Coordinating with other marketing
+    - Waiting for official start date
+  </Accordion>
+  
+  <Accordion title="During Campaign">
+    Temporarily deactivate to:
+    - Pause for inventory issues
+    - Make urgent updates
+    - Respond to customer feedback
+    - Coordinate with in-store promotions
+  </Accordion>
+  
+  <Accordion title="After Campaign">
+    Deactivate when:
+    - Promotion period ends
+    - Stock depleted
+    - Moving to new campaign
+    - Analyzing campaign results
+  </Accordion>
+</AccordionGroup>
+
+## Promotion URLs & SEO
+
+Like products, promotions get SEO-friendly URLs:
+
+### URL Generation
+
+1. Promotion title converted to lowercase slug
+2. Keywords converted and appended
+3. Special characters replaced with hyphens
+4. Uniqueness verified against existing promos
+5. Numeric suffix added if duplicate found
+
+**Example:**
+- Title: "Summer Sale 2024"
+- Keywords: "discount clearance summer"
+- URL: `summer-sale-2024discount-clearance-summer`
+
+<Info>
+  Promotional URLs are separate from product URLs, so you can have a product and promotion with similar names without conflicts.
+</Info>
+
+## Venue Assignment
+
+Promotions must be assigned to specific venues:
+
+### Venue Search
+
+The system provides autocomplete venue selection:
+
+1. Start typing venue name
+2. Matches appear from active venues
+3. Select correct location
+4. Venue ID automatically assigned
+
+**Search Behavior:**
+- Searches business name (`nombre_empresa`)
+- Only shows active venues (`status = 1`)
+- Partial matching supported
+- Returns venue ID for database storage
+
+**For Venue Staff:**
+- Automatically limited to their assigned venue
+- Venue field pre-populated
+- Cannot select other venues
+
+<Note>
+  Administrators can create promotions for any venue, useful for system-wide campaigns or helping venues with setup.
+</Note>
+
+## Deleting Promotions
+
+To permanently remove a promotion:
+
+1. Navigate to promotion listing
+2. Click Delete
+3. Confirm deletion
+
+**Deleted Data:**
+- Promotion record
+- Image file references
+- Category associations
+- Publication status
+
+**Preserved Data:**
+- Historical sales data
+- Customer complaint records
+- System audit logs
+
+<Note>
+  Deletion is permanent. For expired campaigns, consider deactivating instead of deleting to preserve historical data.
+</Note>
+
+## Complaints About Promotions
+
+Customers can report issues with promotions:
+
+- False advertising
+- Unavailable despite showing in stock
+- Misleading descriptions
+- Terms and conditions disputes
+
+Complaint system tracks:
+- Which promotion was reported
+- Customer details
+- Issue description
+- Venue responsible
+- Resolution status
+
+See the [Complaints & Reports](/features/complaints) documentation for full details.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Campaign Planning">
+    - Set clear start and end dates
+    - Ensure sufficient inventory for campaign duration
+    - Create urgency with limited quantities
+    - Test all details before activating
+    - Coordinate online and in-store promotions
+  </Accordion>
+  
+  <Accordion title="Visual Design">
+    - Use high-impact hero images
+    - Maintain landscape orientation (779x280px)
+    - Include clear promotional text in image
+    - Show product/offer clearly
+    - Use brand-consistent colors and fonts
+    - Ensure text is readable at thumbnail size
+  </Accordion>
+  
+  <Accordion title="Copy & Messaging">
+    - Clear, compelling promotion titles
+    - Detailed descriptions of offer terms
+    - Highlight savings or benefits
+    - Include any restrictions or limitations
+    - Use action-oriented language
+    - Set customer expectations clearly
+  </Accordion>
+  
+  <Accordion title="Inventory Management">
+    - Set realistic quantities based on capacity
+    - Monitor stock levels during campaign
+    - Restock popular promotions quickly
+    - Deactivate when out of stock
+    - Use inventory data for future planning
+  </Accordion>
+  
+  <Accordion title="Performance Tracking">
+    - Monitor sold counts regularly
+    - Track customer complaints
+    - Compare across venues
+    - Analyze what works
+    - Iterate on successful campaigns
+  </Accordion>
+</AccordionGroup>
+
+## Technical Details
+
+### Database Fields
+
+- `id_promo` - Unique promotion ID (primary key)
+- `texto_promo` - Promotion title
+- `claves` - Keywords for search/SEO
+- `descripcion` - Full campaign description
+- `thumbnails` - Image filename
+- `cantidad` - Initial offer quantity
+- `cantidad_existente` - Current available
+- `prod_vendidos` - Total claimed
+- `locale_id_local` - Associated venue
+- `publicar` - Visibility status (0/1)
+- `fechacre_promo` - Creation date
+- `url` - SEO-friendly URL slug
+
+### Image Processing
+
+**Thumbnail Generation:**
+- Maximum width: 450px
+- Maximum height: 280px
+- Maintains aspect ratio
+- JPEG quality: 50%
+
+**Slider Generation:**
+- Maximum width: 779px
+- Maximum height: 280px
+- Maintains aspect ratio
+- Optimized for web display
+
+<Info>
+  All image processing uses the SimpleImage library for consistent, reliable results across different file formats and sizes.
+</Info>

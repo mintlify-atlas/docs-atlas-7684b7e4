@@ -1,0 +1,138 @@
+---
+title: 'Denuncia Model'
+description: 'Model for managing denuncias (reports/complaints) with relationships to locales, registers, galleries, and promos'
+---
+
+## Overview
+
+The `Denuncia` model represents reports or complaints in the Yoneily system. It establishes relationships with multiple other entities including locales, registers, galleries, and promotional content.
+
+## Model Configuration
+
+<ResponseField name="name" type="string" default="Denuncia">
+  Model name identifier
+</ResponseField>
+
+<ResponseField name="primaryKey" type="string" default="id_denuncia">
+  Primary key field for the Denuncia model
+</ResponseField>
+
+## Schema Fields
+
+<ResponseField name="id_denuncia" type="integer" required>
+  Unique identifier for the denuncia record (primary key)
+</ResponseField>
+
+<ResponseField name="locale_id_local" type="integer">
+  Foreign key reference to the associated Locale
+</ResponseField>
+
+<ResponseField name="register_idregistro" type="integer">
+  Foreign key reference to the associated Register
+</ResponseField>
+
+<ResponseField name="galeria_id_galeria" type="integer">
+  Foreign key reference to the associated Gallery
+</ResponseField>
+
+<ResponseField name="promocion_id_promo" type="integer">
+  Foreign key reference to the associated Promo
+</ResponseField>
+
+## Relationships
+
+### belongsTo Associations
+
+The Denuncia model belongs to multiple parent models:
+
+<Expandable title="Locale Association">
+  <ResponseField name="className" type="string" default="Locale">
+    Associated model class
+  </ResponseField>
+  
+  <ResponseField name="foreignKey" type="string" default="locale_id_local">
+    Foreign key field linking to Locale
+  </ResponseField>
+
+```php
+'Locale' => array(
+    'className' => 'Locale',
+    'foreignKey' => 'locale_id_local',
+    'conditions' => '',
+    'fields' => '',
+    'order' => ''
+)
+```
+</Expandable>
+
+<Expandable title="Register Association">
+  <ResponseField name="className" type="string" default="Register">
+    Associated model class
+  </ResponseField>
+  
+  <ResponseField name="foreignKey" type="string" default="register_idregistro">
+    Foreign key field linking to Register
+  </ResponseField>
+
+```php
+'Register' => array(
+    'className' => 'Register',
+    'foreignKey' => 'register_idregistro',
+    'conditions' => '',
+    'fields' => '',
+    'order' => ''
+)
+```
+</Expandable>
+
+<Expandable title="Gallery Association">
+  <ResponseField name="className" type="string" default="Gallery">
+    Associated model class
+  </ResponseField>
+  
+  <ResponseField name="foreignKey" type="string" default="galeria_id_galeria">
+    Foreign key field linking to Gallery
+  </ResponseField>
+
+```php
+'Gallery' => array(
+    'className' => 'Gallery',
+    'foreignKey' => 'galeria_id_galeria',
+    'conditions' => '',
+    'fields' => '',
+    'order' => ''
+)
+```
+</Expandable>
+
+<Expandable title="Promo Association">
+  <ResponseField name="className" type="string" default="Promo">
+    Associated model class
+  </ResponseField>
+  
+  <ResponseField name="foreignKey" type="string" default="promocion_id_promo">
+    Foreign key field linking to Promo
+  </ResponseField>
+
+```php
+'Promo' => array(
+    'className' => 'Promo',
+    'foreignKey' => 'promocion_id_promo',
+    'conditions' => '',
+    'fields' => '',
+    'order' => ''
+)
+```
+</Expandable>
+
+## Validation Rules
+
+No validation rules are explicitly defined in this model.
+
+## Behaviors
+
+No behaviors are attached to this model.
+
+## Source Reference
+
+Source file: `app/models/denuncia.php`

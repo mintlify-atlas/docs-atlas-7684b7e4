@@ -1,0 +1,541 @@
+---
+title: 'Users Controller'
+description: 'API reference for the Users controller that manages user accounts, authentication, permissions, and access control in the Yoneily system'
+---
+
+## Overview
+
+The `UsersController` handles all user management functionality including creating, editing, and deleting users, managing permissions through ACL (Access Control Lists), handling authentication, and generating PDF reports. It supports multiple user types including administrators and vendors.
+
+**Models Used**: `User`, `Group`, `Aco`, `Aro`, `ArosAco`, `Locale`
+
+**Helpers**: `Html`, `Form`, `Javascript`
+
+## Authentication & Access Control
+
+Most actions require authentication. There is commented-out code suggesting some actions may have been public:
+
+```php
+// Commented out beforeFilter
+/*function beforeFilter(){
+    $this->Auth->allow('add_vendedor','consulta_codigo','registrado');
+}*/
+```
+
+Currently, all actions require authentication except as noted.
+
+## Public Actions
+
+### index1()
+
+Lists all users in the system.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**View Variables**:
+- `users`: Array of all user records
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:14
+
+---
+
+### add()
+
+Creates a new user account.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['User']" type="array" required>
+  User data including:
+  - username
+  - password
+  - email_usuario
+  - perfil_usuario
+  - groups_idgrupos: Group ID
+</ParamField>
+
+**View Variables**:
+- `groups`: List of available groups
+
+**Behavior**:
+- Saves new user to database
+- Redirects to index1 on success
+- Shows flash message
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:22
+
+---
+
+### add_vendedor()
+
+Registers a new vendor/seller account with business association.
+
+<ParamField path="layout" type="string" default="log">
+  Uses login layout
+</ParamField>
+
+<ParamField body="this->data['User']" type="array" required>
+  User data including:
+  - locale_id_local: Business location ID
+  - codigo_uno: Business access code
+  - password: Plain text password
+  - pass: Password field
+  - Other user fields
+</ParamField>
+
+**Behavior**:
+- Updates Locale table with codigo_uno
+- Hashes password using Security::hash()
+- Creates vendor user account
+- Redirects to 'registrado' confirmation page
+
+**Access**: Public (commented in beforeFilter)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:34
+
+```php
+$this->data['User']['password'] = Security::hash(
+    $this->data['User']['pass'], null, true
+);
+```
+
+---
+
+### registrado()
+
+Displays vendor registration confirmation page.
+
+<ParamField path="layout" type="string" default="log">
+  Uses login layout
+</ParamField>
+
+**Access**: Public (commented in beforeFilter)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:53
+
+---
+
+### delete($id)
+
+Deletes a user account.
+
+<ParamField path="id" type="integer" required>
+  User ID to delete
+</ParamField>
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**Behavior**:
+- Permanently deletes user record
+- Shows success flash message
+- Redirects to index1
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:57
+
+---
+
+### edit($id)
+
+Edits an existing user account and manages group membership.
+
+<ParamField path="id" type="integer" required>
+  User ID to edit
+</ParamField>
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['User']" type="array">
+  Updated user data
+</ParamField>
+
+**View Variables**:
+- `groups`: List of available groups
+
+**Behavior**:
+- Reads existing user data if no POST data
+- Saves updated user information
+- Updates ARO (Access Request Object) if group changed
+- Redirects to index1 on success
+
+**ACL Integration**:
+```php
+if ($oldgroupid !== $this->data['User']['groups_idgrupos']) {
+    $aro =& $this->Acl->Aro;
+    $user = $aro->findByForeignKeyAndModel($this->data['User']['id_usuario'], 'User');
+    $group = $aro->findByForeignKeyAndModel($this->data['User']['groups_idgrupos'], 'Group');
+    $aro->id = $user['Aro']['id'];
+    $aro->save(array('parent_id' => $group['Aro']['id']));
+}
+```
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:64
+
+---
+
+### edit_pass($id)
+
+Changes a user's password with validation.
+
+<ParamField path="id" type="integer" required>
+  User ID
+</ParamField>
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['User']" type="array" required>
+  Password data:
+  - id_usuario: User ID
+  - oldpass: Current password
+  - newpass: New password
+  - newpassconfirm: Password confirmation
+</ParamField>
+
+**Behavior**:
+- Validates current password
+- Checks that new passwords match
+- Updates password with Auth->password() hashing
+- Shows appropriate flash messages
+
+**Validation Steps**:
+1. Verifies old password matches database
+2. Confirms new password = confirmation
+3. Saves hashed new password
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:93
+
+---
+
+### permission($id)
+
+Manages user permissions through ACL interface.
+
+<ParamField path="id" type="integer" required>
+  User ID
+</ParamField>
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**View Variables**:
+- `iduser`: User ID
+- `padre`: Parent ACO nodes (controllers)
+- `hijo`: Child ACO nodes (actions)
+- `permiso`: Current permission status for each action
+
+**Behavior**:
+- Loads ACL tree structure
+- Filters ACOs with parent_id = 1 and id >= 10
+- Checks current permissions for user
+- Displays permission matrix
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:124
+
+```php
+foreach($parents as $idparent => $alias) {
+    $child[$idparent] = $this->Aco->find('list', 
+        array('fields' => 'Aco.alias',
+              'conditions'=>array('Aco.parent_id'=>$idparent)));
+    foreach($child[$idparent] as $idhijo => $aliashijo) {
+        $permiso[$idhijo] = $this->Acl->check(
+            array('model' => 'User', 'foreign_key' => $id), 
+            $aliashijo
+        );
+    }
+}
+```
+
+---
+
+### ajax_load()
+
+AJAX endpoint to toggle user permissions.
+
+<ParamField path="layout" type="string" default="Ajax">
+  Uses AJAX layout
+</ParamField>
+
+<ParamField body="$_POST['key']" type="integer" required>
+  User ID
+</ParamField>
+
+<ParamField body="$_POST['key2']" type="string" required>
+  Action alias (permission name)
+</ParamField>
+
+<ParamField body="$_POST['key3']" type="integer" required>
+  Current permission state (0 = denied, 1 = allowed)
+</ParamField>
+
+**View Variables**:
+- `iduser`: User ID
+- `hijoalias`: Action alias
+- `permitido`: New permission state
+
+**Behavior**:
+- If key3 = 0: Grants permission (sets to 1)
+- If key3 = 1: Denies permission (sets to 0)
+- Uses Acl->allow() or Acl->deny()
+
+**Returns**: AJAX response with new permission state
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:156
+
+---
+
+### login()
+
+Displays the login page.
+
+<ParamField path="layout" type="string" default="login">
+  Uses login layout
+</ParamField>
+
+**Access**: Public (handled by Auth component)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:178
+
+---
+
+### home()
+
+Displays the admin home page.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:182
+
+---
+
+### ayuda()
+
+Displays the help page.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:186
+
+---
+
+### logout()
+
+Logs out the current user.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**Behavior**:
+- Clears user session
+- Shows logout confirmation message
+- Redirects to Auth->logout() destination
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:189
+
+---
+
+### pdf($id)
+
+Generates a PDF report for a single user.
+
+<ParamField path="id" type="integer" required>
+  User ID
+</ParamField>
+
+<ParamField path="layout" type="string" default="pdf">
+  Uses PDF layout
+</ParamField>
+
+**Behavior**:
+- Sets debug mode to 0
+- Finds user by ID
+- Renders PDF view
+
+**View Variables**:
+- `usuarios`: User record(s)
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:223
+
+```php
+Configure::write('debug', 0);
+$usuarios = $this->User->find('all', 
+    array('conditions' => array('User.id_usuario'=>$id)));
+```
+
+---
+
+### pdf_completo()
+
+Generates a complete PDF report of all users.
+
+<ParamField path="layout" type="string" default="pdf">
+  Uses PDF layout
+</ParamField>
+
+**Behavior**:
+- Sets debug mode to 0
+- Retrieves all users
+- Renders PDF view
+
+**View Variables**:
+- `usuarios`: All user records
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:229
+
+---
+
+### consulta_codigo($cod)
+
+AJAX endpoint to validate a business access code.
+
+<ParamField path="cod" type="string" required>
+  Business access code
+</ParamField>
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+**Returns**: Echoes either:
+- Locale ID (integer) if code is valid
+- `0` if code not found
+
+**Behavior**:
+- Searches Locale table for matching codigo
+- Returns locale ID for vendor registration
+
+**Access**: Public (commented in beforeFilter)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/users_controller.php:235
+
+```php
+$locales = $this->Locale->find('all',
+    array('conditions'=>array('codigo'=>$cod)));
+if(!empty($locales)){
+    $cod=$locales[0]['Locale']['id_local'];
+    echo $cod;
+}else{
+    echo 0;
+}
+```
+
+## Usage Examples
+
+### Creating a New User
+
+```php
+// POST to /users/add
+$data = [
+    'User' => [
+        'username' => 'johndoe',
+        'password' => 'securepassword',
+        'email_usuario' => 'john@example.com',
+        'perfil_usuario' => 'John Doe',
+        'groups_idgrupos' => 2
+    ]
+];
+```
+
+### Registering a Vendor
+
+```php
+// POST to /users/add_vendedor
+$data = [
+    'User' => [
+        'locale_id_local' => 123,
+        'codigo_uno' => 'ABC123',
+        'username' => 'vendor1',
+        'pass' => 'password123',
+        'perfil_usuario' => 'Vendor Name',
+        'groups_idgrupos' => 3
+    ]
+];
+```
+
+### Changing Password
+
+```php
+// POST to /users/edit_pass/5
+$data = [
+    'User' => [
+        'id_usuario' => 5,
+        'oldpass' => 'currentpassword',
+        'newpass' => 'newpassword123',
+        'newpassconfirm' => 'newpassword123'
+    ]
+];
+```
+
+### Toggle Permission via AJAX
+
+```javascript
+$.post('/users/ajax_load', {
+    key: 5,        // User ID
+    key2: 'edit',  // Permission name
+    key3: 0        // Current state (0=denied, will grant)
+});
+```
+
+## ACL Integration
+
+The Users controller integrates deeply with CakePHP's ACL system:
+
+**ARO Structure**:
+- Groups are parent AROs
+- Users are child AROs under their group
+- Changing a user's group updates the ARO parent_id
+
+**Permission Management**:
+- Permissions are managed per-user or per-group
+- ACO tree represents controllers and actions
+- The `permission()` action provides a UI for managing permissions
+- AJAX updates allow/deny permissions in real-time
+
+## Database Structure
+
+The controller works with the `users` table:
+- `id_usuario`: Primary key
+- `username`: Login username
+- `password`: Hashed password
+- `email_usuario`: Email address
+- `perfil_usuario`: Display name/profile
+- `groups_idgrupos`: Foreign key to groups
+- `locale_id_local`: Associated business location (for vendors)

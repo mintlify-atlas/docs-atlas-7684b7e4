@@ -1,0 +1,218 @@
+---
+title: 'User Model'
+description: 'Model for managing system users with ACL integration, group associations, and comprehensive validation'
+---
+
+## Overview
+
+The `User` model represents system users in the Yoneily application. It includes ACL (Access Control List) integration, group-based permissions, and extensive validation rules for user registration and profile management.
+
+## Model Configuration
+
+<ResponseField name="name" type="string" default="User">
+  Model name identifier
+</ResponseField>
+
+<ResponseField name="primaryKey" type="string" default="id_usuario">
+  Primary key field for the User model
+</ResponseField>
+
+## Schema Fields
+
+<ResponseField name="id_usuario" type="integer" required>
+  Unique identifier for the user record (primary key)
+</ResponseField>
+
+<ResponseField name="groups_idgrupos" type="integer" required>
+  Foreign key reference to the user's group (required field)
+</ResponseField>
+
+<ResponseField name="username" type="string" required>
+  Username for authentication (minimum 4 characters)
+</ResponseField>
+
+<ResponseField name="perfil_usuario" type="string" required>
+  User profile information
+</ResponseField>
+
+<ResponseField name="email_usuario" type="string" required>
+  User email address
+</ResponseField>
+
+<ResponseField name="newpass" type="string">
+  New password field (minimum 4 characters)
+</ResponseField>
+
+<ResponseField name="newpassconfirm" type="string">
+  Password confirmation field (minimum 4 characters)
+</ResponseField>
+
+## Validation Rules
+
+The User model implements comprehensive validation:
+
+<Expandable title="groups_idgrupos Validation">
+```php
+'groups_idgrupos'=>array(
+    'rule' => array('notEmpty'),
+    'message' => '* Requerido'
+)
+```
+  <ResponseField name="rule" type="array">
+    Must not be empty
+  </ResponseField>
+  <ResponseField name="message" type="string">
+    Error message: "* Requerido"
+  </ResponseField>
+</Expandable>
+
+<Expandable title="username Validation">
+```php
+'username' => array(
+    'userrule1' => array(
+        'rule' => array('minLength', 4),
+        'message' => 'Este campo debe tener minimo 4 caracteres'
+    ),
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => '* Requerido'
+    )
+)
+```
+  <ResponseField name="minLength" type="integer" default="4">
+    Minimum username length requirement
+  </ResponseField>
+  <ResponseField name="notEmpty" type="boolean" default="true">
+    Field cannot be empty
+  </ResponseField>
+</Expandable>
+
+<Expandable title="perfil_usuario Validation">
+```php
+'perfil_usuario'=>array(
+    'rule' => array('notEmpty'),
+    'message' => '* Requerido'
+)
+```
+  <ResponseField name="rule" type="array">
+    Must not be empty
+  </ResponseField>
+</Expandable>
+
+<Expandable title="email_usuario Validation">
+```php
+'email_usuario'=>array(
+    'userrule3' => array(
+        'rule' => array('notEmpty'),
+        'message' => '* Requerido'
+    )
+)
+```
+  <ResponseField name="rule" type="array">
+    Must not be empty (email format validation is commented out)
+  </ResponseField>
+</Expandable>
+
+<Expandable title="newpass Validation">
+```php
+'newpass'=>array(
+    'rule' => array('minLength', 4),
+    'message' => 'Este campo debe tener minimo 4 caracteres'
+)
+```
+  <ResponseField name="minLength" type="integer" default="4">
+    Minimum password length
+  </ResponseField>
+</Expandable>
+
+<Expandable title="newpassconfirm Validation">
+```php
+'newpassconfirm'=>array(
+    'rule' => array('minLength', 4),
+    'message' => 'Este campo debe tener minimo 4 caracteres'
+)
+```
+  <ResponseField name="minLength" type="integer" default="4">
+    Minimum password confirmation length
+  </ResponseField>
+</Expandable>
+
+## Relationships
+
+### belongsTo Associations
+
+<Expandable title="Group Association">
+  <ResponseField name="className" type="string" default="Group">
+    Associated model class for user groups
+  </ResponseField>
+  
+  <ResponseField name="foreignKey" type="string" default="groups_idgrupos">
+    Foreign key field linking to Group
+  </ResponseField>
+
+```php
+'Group' => array(
+    'className' => 'Group',
+    'foreignKey' => 'groups_idgrupos',
+    'conditions' => '',
+    'fields' => '',
+    'order' => ''
+)
+```
+</Expandable>
+
+## Behaviors
+
+### ACL Behavior
+
+The User model implements the ACL (Access Control List) behavior as a requester:
+
+```php
+var $actsAs = array('Acl' => array('requester'));
+```
+
+<ResponseField name="actsAs" type="array">
+  <Expandable title="Acl Behavior Configuration">
+    <ResponseField name="type" type="string" default="requester">
+      User acts as an ACL requester for permission checks
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Custom Methods
+
+### parentNode()
+
+Determines the parent node for ACL hierarchy. Returns the user's group as the parent node for permission inheritance.
+
+```php
+function parentNode() {
+    if (!$this->id && empty($this->data)) {
+        return null;
+    }
+    $data = $this->data;
+    if (empty($this->data)) {
+        $data = $this->read();
+    }
+    if (!$data['User']['groups_idgrupos']) {
+        return null;
+    } else {
+        return array('Group' => array('idgrupos' => $data['User']['groups_idgrupos']));
+    }
+}
+```
+
+<ResponseField name="parentNode" type="function">
+  <Expandable title="Function Details">
+    <ResponseField name="returns" type="array|null">
+      Returns the user's Group as parent node, or null if no group is assigned
+    </ResponseField>
+    <ResponseField name="purpose" type="string">
+      Establishes ACL hierarchy by linking users to their groups for permission inheritance
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## Source Reference
+
+Source file: `app/models/user.php`

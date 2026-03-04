@@ -1,0 +1,660 @@
+---
+title: 'Managing Products'
+description: 'Complete guide for managing gallery items, uploads, and inventory in Yoneily'
+icon: 'boxes-stacked'
+---
+
+## Overview
+
+Yoneily's gallery system allows vendors and administrators to manage product inventory, upload product images, and track sales. This guide covers everything you need to know about adding, editing, and managing products (referred to as "galleries" in the system).
+
+## Understanding the Gallery System
+
+The gallery system is the product management core of Yoneily, handling:
+
+- Product information and descriptions
+- Product images with automatic resizing
+- Inventory tracking (quantity available)
+- Sales tracking (products sold)
+- Location-based product assignment
+- Product activation/deactivation
+
+## Viewing Your Products
+
+Access and browse your product inventory.
+
+<Steps>
+  <Step title="Log In">
+    Log in with your vendor or administrator credentials.
+  </Step>
+  
+  <Step title="Navigate to Galleries">
+    Go to the Galleries section from the main menu.
+  </Step>
+  
+  <Step title="View Product List">
+    You'll see a paginated list of products:
+    - 10 products per page
+    - Sorted by creation date (newest first)
+    - Location-filtered if you're a vendor
+  </Step>
+</Steps>
+
+### Location-Based Filtering
+
+```php
+// From galleries_controller.php:9-20
+function index() {
+    $user = $this->Session->read('Auth.User.locale_id_local');
+    
+    if(!empty($user)) {
+        // Vendor: See only products for their location
+        $this->paginate = array(
+            'conditions' => array('Gallery.locale_id_local' => $user),
+            'limit' => 10,
+            'order' => 'fechacre_galeria DESC'
+        );
+        $this->set('galleries', $this->paginate('Gallery'));
+    } else {
+        // Admin: See all products from all locations
+        $this->paginate = array(
+            'limit' => 10,
+            'order' => 'fechacre_galeria DESC'
+        );
+        $this->set('galleries', $this->paginate('Gallery'));
+    }
+}
+```
+
+<Note>
+  **Vendors** see only products assigned to their location. **Administrators** see all products from all locations.
+</Note>
+
+## Adding New Products
+
+Create new products in the gallery system with images and inventory details.
+
+<Steps>
+  <Step title="Access Add Product Form">
+    Click the "Add" or "New Gallery" button from the galleries list.
+  </Step>
+  
+  <Step title="Select Location">
+    Choose or confirm the business location for this product. Vendors see their location pre-filled; admins can select any location.
+  </Step>
+  
+  <Step title="Enter Product Details">
+    Fill in the product information:
+    - Product name/title
+    - Description
+    - Price
+    - Initial quantity (inventory)
+    - Any other relevant details
+  </Step>
+  
+  <Step title="Upload Product Image">
+    Select an image file for the product. The system will automatically create multiple sizes:
+    - Original (stored in `/files/galeria/otras/`)
+    - Thumbnail 124x124 (for listings)
+    - Normal 600x480 (for detail views)
+  </Step>
+  
+  <Step title="Save Product">
+    Submit the form. The system will:
+    - Save product information
+    - Process and resize images
+    - Set initial inventory quantities
+    - Initialize sales counter to 0
+  </Step>
+</Steps>
+
+### Product Creation Code
+
+```php
+// From galleries_controller.php:29-97 (key sections)
+function add() {
+    $user = $this->Session->read('Auth.User.locale_id_local');
+    
+    if(!empty($user)) {
+        // Get vendor's location details
+        $locales = $this->Locale->find('all', array(
+            'conditions' => array('Locale.id_local =' => $user)
+        ));
+        $empresa = $locales[0]['Locale']['nombre_empresa'];
+        $this->set('empresa', $empresa);
+    }
+    
+    if (!empty($this->data)) {
+        $this->Gallery->create();
+        
+        // Get location ID from company name
+        $nombre_local = $this->data['Gallery']['locale_id_local'];
+        $locales = $this->Locale->find('all', array(
+            'fields' => array('Locale.nombre_empresa', 'Locale.id_local'),
+            'conditions' => array(
+                'Locale.nombre_empresa =' => $nombre_local,
+                'Locale.status =' => 1
+            )
+        ));
+        $this->data['Gallery']['locale_id_local'] = 
+            $locales[0]['Locale']['id_local'];
+        
+        // Set initial inventory values
+        $cantidad = $this->data['Gallery']['cantidad'];
+        $this->data['Gallery']['cantidad_existente'] = $cantidad;
+        $this->data['Gallery']['prod_vendidos'] = 0;
+        
+        if ($this->Gallery->saveAll($this->data)) {
+            // Image processing happens here
+            $this->Session->setFlash('La galeria se ha guardado');
+            $this->redirect(array('action' => 'index'));
+        }
+    }
+}
+```
+
+### Automatic Image Resizing
+
+When you upload a product image, the system automatically creates optimized versions:
+
+```php
+// From galleries_controller.php:49-81
+$nom_pic = $this->Gallery->read();
+$file = $nom_pic['Gallery']['thumbnails'];
+
+// Create thumbnail (124x124)
+$file_directory = dirname(__FILE__)."/../webroot/files/galeria/otras/";
+$conversion = dirname(__FILE__)."/../webroot/files/galeria/thumbnails/";
+$original_file_path = $file_directory.$file;
+$conversion = $conversion.$file;
+
+$image = new SimpleImage();
+$image->load($original_file_path);
+if($image->getWidth() > 124) {
+    $image->resizeToWidth(124);
+}
+if($image->getHeight() > 124) {
+    $image->resizeToHeight(124);
+}
+$image->save($conversion);
+
+// Create normal size (600x480)
+$normal = dirname(__FILE__)."/../webroot/files/galeria/normal/";
+$normal = $normal.$file;
+
+$image = new SimpleImage();
+$image->load($original_file_path);
+if($image->getWidth() > 600) {
+    $image->resizeToWidth(600);
+}
+if($image->getHeight() > 480) {
+    $image->resizeToHeight(480);
+}
+$image->save($normal);
+```
+
+**Image versions created**:
+
+| Version | Max Dimensions | Location | Use Case |
+|---------|----------------|----------|----------|
+| Original | Uploaded size | `/files/galeria/otras/` | Archive/backup |
+| Thumbnail | 124x124px | `/files/galeria/thumbnails/` | Product listings |
+| Normal | 600x480px | `/files/galeria/normal/` | Product detail pages |
+
+<Tip>
+  Upload high-quality images (at least 800x600px). The system will automatically resize them for optimal performance while maintaining quality.
+</Tip>
+
+## Editing Products
+
+Update existing product information and images.
+
+<Steps>
+  <Step title="Select Product">
+    From the galleries list, click "Edit" on the product you want to modify.
+  </Step>
+  
+  <Step title="Update Information">
+    Modify any product fields:
+    - Change description
+    - Update pricing
+    - Adjust quantity
+    - Update location assignment
+  </Step>
+  
+  <Step title="Replace Image (Optional)">
+    If you want to change the product image, upload a new file. The old images will be replaced.
+  </Step>
+  
+  <Step title="Save Changes">
+    Submit the form. The system will:
+    - Update product information
+    - Reprocess images if a new file was uploaded
+    - Reset inventory quantities if changed
+    - Maintain sales history
+  </Step>
+</Steps>
+
+### Edit Implementation
+
+```php
+// From galleries_controller.php:100-162 (simplified)
+function edit($id = null) {
+    if (!$id && empty($this->data)) {
+        $this->Session->setFlash('Invalid gallery');
+        $this->redirect(array('action' => 'index'));
+    }
+    
+    if (!empty($this->data)) {
+        // Update location
+        $nombre_local = $this->data['Gallery']['locale_id_local'];
+        $locales = $this->Locale->find('all', array(
+            'fields' => array('Locale.nombre_empresa', 'Locale.id_local'),
+            'conditions' => array(
+                'Locale.nombre_empresa =' => $nombre_local,
+                'Locale.status =' => 1
+            )
+        ));
+        $this->data['Gallery']['locale_id_local'] = 
+            $locales[0]['Locale']['id_local'];
+        
+        // Update inventory
+        $cantidad = $this->data['Gallery']['cantidad'];
+        $this->data['Gallery']['cantidad_existente'] = $cantidad;
+        $this->data['Gallery']['prod_vendidos'] = 0;
+        
+        if ($this->Gallery->saveAll($this->data)) {
+            // Image processing code (same as add)
+            $this->Session->setFlash('La galeria se ha guardado');
+            $this->redirect(array('action' => 'index'));
+        }
+    }
+    
+    if (empty($this->data)) {
+        $this->data = $this->Gallery->read(null, $id);
+    }
+}
+```
+
+<Warning>
+  When editing a product, the `prod_vendidos` (products sold) counter is reset to 0. If you need to preserve sales history, avoid using the edit function for quantity updates.
+</Warning>
+
+## Inventory Management
+
+Track and manage product quantities and sales.
+
+### Key Inventory Fields
+
+| Field | Description |
+|-------|-------------|
+| `cantidad` | Initial/total quantity added |
+| `cantidad_existente` | Current available quantity |
+| `prod_vendidos` | Number of units sold |
+
+### How Inventory Updates Work
+
+When a product is sold (through the sales system), inventory is automatically adjusted:
+
+```php
+// From denuncias_controller.php:37-66 (sales tracking)
+function add($producto, $usuario, $local) {
+    $fecha = date('d-m-Y');
+    $datos['Venta'] = array(
+        'galeria_id_galeria' => $producto,
+        'register_idregistro' => $usuario,
+        'locale_id_local' => $local,
+        'fecha' => $fecha
+    );
+    
+    if (!empty($datos)) {
+        // Check if product has inventory
+        $galeria = $this->Gallery->find('all', array(
+            'conditions' => array(
+                'id_galeria' => $producto,
+                'cantidad_existente >' => 0
+            )
+        ));
+        
+        if(!empty($galeria)) {
+            $c = $galeria[0]['Gallery']['cantidad_existente'];
+            $cant = $c - 1;  // Reduce inventory by 1
+            
+            $vend = $galeria[0]['Gallery']['prod_vendidos'];
+            $vendidos = $vend + 1;  // Increment sold counter
+            
+            $this->Venta->create();
+            if ($this->Venta->saveAll($datos)) {
+                // Update gallery inventory
+                $this->Gallery->updateAll(
+                    array(
+                        'Gallery.cantidad_existente' => $cant,
+                        'Gallery.prod_vendidos' => $vendidos
+                    ),
+                    array('Gallery.id_galeria' => $producto)
+                );
+                echo 1; // Success
+            }
+        } else {
+            echo 2; // Out of stock
+        }
+    }
+}
+```
+
+**Inventory flow**:
+1. Customer purchases product
+2. System checks `cantidad_existente > 0`
+3. If available: `cantidad_existente--` and `prod_vendidos++`
+4. If sold out: Transaction rejected
+
+### Checking Inventory Status
+
+<AccordionGroup>
+  <Accordion title="In Stock" icon="circle-check">
+    `cantidad_existente > 0` - Product can be purchased
+  </Accordion>
+  
+  <Accordion title="Out of Stock" icon="circle-xmark">
+    `cantidad_existente = 0` - Product cannot be purchased until restocked
+  </Accordion>
+  
+  <Accordion title="Low Stock" icon="triangle-exclamation">
+    Consider restocking when `cantidad_existente` is below your threshold (e.g., less than 5 units)
+  </Accordion>
+</AccordionGroup>
+
+## Activating and Deactivating Products
+
+Control product visibility without deleting them.
+
+### Deactivating a Product
+
+Hide a product from public view while keeping it in the database:
+
+<Steps>
+  <Step title="Find Product">
+    Locate the product in your galleries list.
+  </Step>
+  
+  <Step title="Click Deactivate">
+    Click the "Desactivar" (Deactivate) button.
+  </Step>
+  
+  <Step title="Confirm">
+    The product's `publicar` field is set to 0, hiding it from customers.
+  </Step>
+</Steps>
+
+```php
+// From galleries_controller.php:193-206
+function desactiva($id = null) {
+    if (!$id) {
+        $this->Session->setFlash('Invalid id for gallery');
+        $this->redirect(array('action' => 'index'));
+    }
+    
+    if($this->Gallery->updateAll(
+        array('Gallery.publicar' => '0'),
+        array('Gallery.id_galeria' => $id)
+    )) {
+        $this->Session->setFlash(
+            'La Galeria se modificó correctamente'
+        );
+        $this->redirect(array('action' => 'index'));
+    }
+}
+```
+
+### Activating a Product
+
+Make a deactivated product visible again:
+
+```php
+// From galleries_controller.php:208-221
+function activa($id = null) {
+    if (!$id) {
+        $this->Session->setFlash('Invalid id for gallery');
+        $this->redirect(array('action' => 'index'));
+    }
+    
+    if($this->Gallery->updateAll(
+        array('Gallery.publicar' => '1'),
+        array('Gallery.id_galeria' => $id)
+    )) {
+        $this->Session->setFlash(
+            'La Galeria se modificó correctamente'
+        );
+        $this->redirect(array('action' => 'index'));
+    }
+}
+```
+
+<Tip>
+  Use deactivation instead of deletion for:
+  - Seasonal products you'll sell again
+  - Temporarily out-of-stock items
+  - Products undergoing description/image updates
+</Tip>
+
+## Deleting Products
+
+Permanently remove products from the system.
+
+<Steps>
+  <Step title="Select Product">
+    Find the product you want to delete.
+  </Step>
+  
+  <Step title="Click Delete">
+    Click the delete button/link for that product.
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    The product and all associated data are permanently removed.
+  </Step>
+</Steps>
+
+```php
+// From galleries_controller.php:164-175
+function delete($id = null) {
+    if (!$id) {
+        $this->Session->setFlash('Invalid id for gallery');
+        $this->redirect(array('action' => 'index'));
+    }
+    
+    if ($this->Gallery->deleteAll("Gallery.id_galeria=".$id)) {
+        $this->Session->setFlash('Gallery deleted');
+        $this->redirect(array('action' => 'index'));
+    }
+    
+    $this->Session->setFlash('Gallery was not deleted');
+    $this->redirect(array('action' => 'index'));
+}
+```
+
+<Warning>
+  **Deletion is permanent!** Product information, images, and sales history will be lost. Consider deactivating instead if you might need the product again.
+</Warning>
+
+## Managing Product Images
+
+Advanced image management beyond basic upload/edit.
+
+### Deleting Specific Images
+
+If products have multiple images, you can delete specific ones:
+
+```php
+// From galleries_controller.php:177-190
+function deleteimg($id = null, $idfile = null) {
+    if (!$id) {
+        $this->Session->setFlash('Invalid id for gallery');
+        $this->redirect(array('action' => 'index'));
+    }
+    
+    if ($this->Gallery->query("
+        DELETE FROM archivos_galleries, archivos 
+        USING archivos_galleries 
+        INNER JOIN archivos 
+            ON archivos_galleries.files_id_file = archivos.id_file 
+        INNER JOIN galleries 
+            ON archivos_galleries.galerias_id_galeria = galleries.id_galeria 
+        WHERE galleries.id_galeria = $id 
+            AND archivos.id_file = $idfile
+    ")) {
+        $this->Session->setFlash('Imagen Borrada');
+    }
+}
+```
+
+This removes the association between a gallery and a specific image file.
+
+### Image Storage Structure
+
+```
+/app/webroot/files/galeria/
+├── otras/          (Original uploads)
+│   ├── product1.jpg
+│   └── product2.png
+├── thumbnails/     (124x124 thumbnails)
+│   ├── product1.jpg
+│   └── product2.png
+└── normal/         (600x480 display size)
+    ├── product1.jpg
+    └── product2.png
+```
+
+## Location Search and Assignment
+
+Find and assign products to specific business locations.
+
+### Location Autocomplete
+
+```php
+// From galleries_controller.php:223-244
+function verlocal() {
+    $frase = $_REQUEST['term'];
+    
+    if(($frase != "") || ($frase != NULL)) {
+        $locales = $this->Locale->find('all', array(
+            'fields' => array('Locale.nombre_empresa', 'Locale.id_local'),
+            'conditions' => array(
+                'Locale.nombre_empresa LIKE' => '%'.$frase.'%',
+                'Locale.status =' => 1
+            )
+        ));
+    } else {
+        $locales = $this->Locale->find('all', array(
+            'fields' => array('Locale.nombre_empresa')
+        ));
+    }
+    
+    $nomlocal = array();
+    for($i = 0; $i < count($locales); $i++) {
+        $nomlocal[$i]['id'] = $locales[$i]['Locale']['id_local'];
+        $nomlocal[$i]['value'] = $locales[$i]['Locale']['nombre_empresa'];
+    }
+    $this->set('local', $nomlocal);
+}
+```
+
+This provides autocomplete functionality when assigning products to locations, showing only active locations.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="High-Quality Images" icon="image">
+    Upload images at least 800x600px for best quality after automatic resizing. Use good lighting and clear product views.
+  </Card>
+  
+  <Card title="Accurate Inventory" icon="boxes-stacked">
+    Keep inventory counts accurate. Update quantities immediately when receiving shipments or discovering discrepancies.
+  </Card>
+  
+  <Card title="Detailed Descriptions" icon="file-lines">
+    Write clear, detailed product descriptions. Include size, color, materials, and any other relevant information.
+  </Card>
+  
+  <Card title="Regular Reviews" icon="rotate">
+    Periodically review your product list. Deactivate discontinued items and update pricing as needed.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Image upload fails">
+    **Possible causes**:
+    - File too large
+    - Wrong file format
+    - Insufficient server permissions
+    
+    **Solutions**:
+    - Resize image before uploading (try under 2MB)
+    - Use JPG or PNG format
+    - Contact administrator about upload directory permissions
+  </Accordion>
+  
+  <Accordion title="Products not appearing">
+    **Possible causes**:
+    - Product deactivated (`publicar = 0`)
+    - Wrong location assignment
+    - Not logged in with correct account
+    
+    **Solutions**:
+    - Check product activation status
+    - Verify location assignment matches your account
+    - Confirm you're viewing the correct location
+  </Accordion>
+  
+  <Accordion title="Inventory count incorrect">
+    **Possible causes**:
+    - Sales not recorded properly
+    - Manual edit reset counter
+    - Multiple concurrent sales
+    
+    **Solutions**:
+    - Verify sales records match inventory changes
+    - Avoid editing products during active sales periods
+    - Manually correct quantity if needed
+  </Accordion>
+  
+  <Accordion title="Can't assign to location">
+    **Possible causes**:
+    - Location deactivated
+    - Location doesn't exist
+    - Insufficient permissions
+    
+    **Solutions**:
+    - Verify location is active (`status = 1`)
+    - Check location spelling/name
+    - Contact administrator for permission issues
+  </Accordion>
+</AccordionGroup>
+
+## Product Data Model
+
+Understanding the complete product data structure:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id_galeria` | Integer | Unique product ID |
+| `thumbnails` | String | Image filename |
+| `locale_id_local` | Integer | Assigned location ID |
+| `cantidad` | Integer | Initial quantity |
+| `cantidad_existente` | Integer | Current inventory |
+| `prod_vendidos` | Integer | Units sold |
+| `publicar` | Boolean | 1 = active, 0 = hidden |
+| `fechacre_galeria` | Datetime | Creation timestamp |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Submitting Complaints" icon="file-circle-exclamation" href="/guide/submitting-complaints">
+    Learn how customers submit product complaints
+  </Card>
+  <Card title="Permissions" icon="shield-check" href="/guide/permissions">
+    Understand who can manage products
+  </Card>
+</CardGroup>

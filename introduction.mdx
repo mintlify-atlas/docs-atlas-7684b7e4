@@ -1,0 +1,96 @@
+---
+title: Introduction
+description: Overview of the Yoneily complaint and report management system built with CakePHP
+---
+
+## What is Yoneily?
+
+Yoneily is a comprehensive complaint and report management system built with CakePHP, a rapid development framework for PHP. The system enables organizations to efficiently handle customer complaints, manage reports, track denuncias (complaints), and maintain user registrations.
+
+## Key features
+
+The system provides the following core functionality:
+
+- **Complaint management**: Track and respond to customer complaints (denuncias) with status monitoring
+- **User management**: Role-based access control using CakePHP's ACL (Access Control Lists)
+- **Report generation**: Generate and export reports for analysis
+- **Multi-location support**: Manage complaints across multiple locales/stores
+- **Gallery and media management**: Handle promotional materials and images
+- **Custom routing**: Clean URLs for public-facing pages (quienes, contactanos, mision, etc.)
+
+## System architecture
+
+Yoneily follows the Model-View-Controller (MVC) design pattern:
+
+- **Models**: Handle data logic and database interactions (Denuncia, User, Gallery, Locale, etc.)
+- **Controllers**: Process user requests and coordinate between models and views
+- **Views**: Render the user interface using CakePHP's templating system
+
+## Technology stack
+
+The system is built on:
+
+- **CakePHP 1.3**: PHP rapid development framework
+- **MySQL**: Database management system
+- **PHP 5.3+**: Server-side scripting language
+- **Apache mod_rewrite**: Clean URL routing
+
+## Core modules
+
+### Denuncias (Complaints)
+Manages the full lifecycle of customer complaints, from submission to resolution. Located in `app/controllers/denuncias_controller.php:2`.
+
+### Users and authentication
+Handles user registration, login, and role-based permissions using CakePHP's Auth component.
+
+### Ventas (Sales/Reports)
+Tracks customer interactions and provides "mis reclamos" (my complaints) functionality for registered users.
+
+### Locales
+Manages multiple store locations with location-specific complaint filtering.
+
+### Galleries and promotions
+Handles promotional materials, images, and campaign management.
+
+## Project structure
+
+```
+sistema_magdaleno/
+├── app/
+│   ├── config/          # Configuration files
+│   ├── controllers/     # Application controllers
+│   ├── models/          # Data models
+│   ├── views/           # View templates
+│   ├── webroot/         # Public files (CSS, JS, images)
+│   └── tmp/             # Cache and session storage
+├── cake/                # CakePHP core framework
+├── vendors/             # Third-party libraries
+└── localhost.sql        # Database schema
+```
+
+<Note>
+This system uses CakePHP 1.3, which is a legacy version. Modern projects should consider upgrading to CakePHP 4.x or 5.x for improved security and features.
+</Note>
+
+## Who should use this documentation?
+
+This documentation is designed for:
+
+- Developers setting up the system for the first time
+- System administrators configuring production environments
+- Developers extending or maintaining the codebase
+- Technical staff troubleshooting issues
+
+## Next steps
+
+<Steps>
+  <Step title="Install dependencies">
+    Set up PHP, MySQL, and Apache with mod_rewrite support
+  </Step>
+  <Step title="Configure database">
+    Import the database schema and configure connection settings
+  </Step>
+  <Step title="Configure the application">
+    Update security settings, routing, and application preferences
+  </Step>
+</Steps>

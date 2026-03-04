@@ -1,0 +1,459 @@
+---
+title: 'Promos Controller'
+description: 'API reference for the Promos controller that manages promotional items, special offers, and promotional campaigns in the Yoneily e-commerce platform'
+---
+
+## Overview
+
+The `PromosController` handles promotional product management in the Yoneily system. It provides functionality similar to the Galleries controller but specifically for promotional items and special offers. The controller includes image processing, inventory tracking, and business-specific filtering.
+
+**Models Used**: `Promo`, `Archivo`, `Category`, `Locale`
+
+**Helpers**: `Html`, `Form`, `Javascript`
+
+**External Libraries**: `SimpleImage.php` (vendor library for image processing)
+
+## Image Processing
+
+The controller automatically generates two image versions for each promotional image:
+
+1. **Thumbnails**: 450x280px (stored in `/files/promos/thumbnails/`)
+2. **Slider**: 779x280px (stored in `/files/promos/slider/`)
+3. **Original**: Full size (stored in `/files/promos/otras/`)
+
+## Public Actions
+
+### index()
+
+Lists all promotional items with pagination.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**Behavior**:
+- If user has `locale_id_local` in session, filters promos by that location
+- Otherwise shows all promos
+- Paginated with 10 items per page
+- Ordered by creation date descending
+
+**View Variables**:
+- `promociones`: Paginated promo records
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/promos_controller.php:14
+
+```php
+if(!empty($user)){
+    $this->paginate = array(
+        'conditions'=>array('Promo.locale_id_local'=>$user),
+        'limit' => 10,
+        'order'=> 'fechacre_promo DESC'
+    );
+}
+```
+
+---
+
+### view($id)
+
+Views a single promotional item.
+
+<ParamField path="id" type="integer" required>
+  Promo ID
+</ParamField>
+
+**Returns**: Redirects to index if invalid ID
+
+**View Variables**:
+- `promociones`: Promo record
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/promos_controller.php:35
+
+---
+
+### add()
+
+Creates a new promotional item with image upload and processing.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['Promo']" type="array" required>
+  Promo data including:
+  - locale_id_local: Business name (converted to ID)
+  - nombre_promo: Promotion name
+  - descripcion_promo: Description
+  - precio: Price
+  - cantidad: Quantity available
+  - fecha_inicio: Start date
+  - fecha_fin: End date
+  - thumbnails: Uploaded image file
+</ParamField>
+
+**View Variables**:
+- `empresa`: Business name (if user has locale_id_local)
+- `users`: User list
+- `archivos`: File list
+
+**Behavior**:
+1. Validates business exists and is active (status = 1)
+2. Converts business name to locale ID
+3. Sets initial inventory values:
+   - `cantidad_existente` = cantidad
+   - `prod_vendidos` = 0
+4. Saves promo record
+5. Processes uploaded image:
+   - Creates 450x280 thumbnail
+   - Creates 779x280 slider image
+   - Maintains aspect ratio
+6. Shows success/error flash message
+
+**Image Processing**:
+```php
+// Thumbnail processing
+$image = new SimpleImage();
+$image->load($original_file_path);
+if($image->getWidth() > 450){
+    $image->resizeToWidth(450);
+}
+if($image->getHeight() > 280){
+    $image->resizeToHeight(280);
+}
+$image->save($conversion);
+
+// Slider processing
+if($image->getWidth() > 779){
+    $image->resizeToWidth(779);
+}
+if($image->getHeight() > 280){
+    $image->resizeToHeight(280);
+}
+$image->save($normal);
+```
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/promos_controller.php:43
+
+---
+
+### edit($id)
+
+Edits an existing promotional item.
+
+<ParamField path="id" type="integer" required>
+  Promo ID to edit
+</ParamField>
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['Promo']" type="array">
+  Updated promo data (same structure as add)
+</ParamField>
+
+**View Variables**:
+- `empresa`: Business name (if user has locale_id_local)
+
+**Behavior**:
+- If no POST data, loads existing promo data
+- If POST data:
+  1. Converts business name to locale ID
+  2. Updates inventory values
+  3. Saves promo record (note: uses create() which may cause issues)
+  4. Reprocesses images (thumbnail and slider sizes)
+- Redirects to index on success
+
+**Note**: The edit function calls `create()` before saving, which may reset the ID and create a duplicate instead of updating.
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/promos_controller.php:115
+
+---
+
+### delete($id)
+
+Deletes a promotional item and all associated records.
+
+<ParamField path="id" type="integer" required>
+  Promo ID to delete
+</ParamField>
+
+**Behavior**:
+- Validates promo ID
+- Uses deleteAll() to remove promo
+- Shows flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/promos_controller.php:179
+
+```php
+if ($this->Promo->deleteAll("Promo.id_promo=".$id)) {
+    $this->Session->setFlash(__('Promocion deleted', true));
+    $this->redirect(array('action'=>'index'));
+}
+```
+
+---
+
+### deleteimg($id, $idfile)
+
+Deletes a specific image file associated with a promo.
+
+<ParamField path="id" type="integer" required>
+  Promo ID
+</ParamField>
+
+<ParamField path="idfile" type="integer" required>
+  File/Image ID to delete
+</ParamField>
+
+**Behavior**:
+- Uses raw SQL query with INNER JOINs
+- Attempts to delete from archivos_galleries (note: incorrect table reference)
+- Shows success/error flash message
+- Redirects to index
+
+**Note**: SQL query references wrong table (galleries instead of promos)
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/promos_controller.php:193
+
+---
+
+### desactiva($id)
+
+Deactivates/unpublishes a promotional item.
+
+<ParamField path="id" type="integer" required>
+  Promo ID
+</ParamField>
+
+**Behavior**:
+- Sets `Promo.publicar` to 0 (unpublished)
+- Shows flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/promos_controller.php:209
+
+```php
+$this->Promo->updateAll(
+    array('Promo.publicar' => '0'), 
+    array('Promo.id_promo' => $id)
+)
+```
+
+---
+
+### activa($id)
+
+Activates/publishes a promotional item.
+
+<ParamField path="id" type="integer" required>
+  Promo ID
+</ParamField>
+
+**Behavior**:
+- Sets `Promo.publicar` to 1 (published)
+- Shows flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/promos_controller.php:224
+
+---
+
+### verlocal()
+
+AJAX autocomplete endpoint for searching business locations.
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+<ParamField query="term" type="string" required>
+  Search term for business name
+</ParamField>
+
+**Returns**: JSON array of businesses
+
+**Response Format**:
+```json
+[
+    {
+        "id": 123,
+        "value": "Business Name 1"
+    },
+    {
+        "id": 456,
+        "value": "Business Name 2"
+    }
+]
+```
+
+**Behavior**:
+- Searches Locale table with LIKE query
+- Filters by active status (status = 1)
+- Returns matching business names and IDs
+
+**View Variables**:
+- `local`: Array of business objects
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/promos_controller.php:239
+
+## Usage Examples
+
+### Creating a New Promotion
+
+```php
+// POST to /promos/add
+$data = [
+    'Promo' => [
+        'locale_id_local' => 'Tienda Example', // Business name
+        'nombre_promo' => '50% Off Sale',
+        'descripcion_promo' => 'Limited time offer on all items',
+        'precio' => 14.99,
+        'cantidad' => 50,
+        'fecha_inicio' => '2026-03-01',
+        'fecha_fin' => '2026-03-31',
+        'thumbnails' => [/* uploaded file data */]
+    ]
+];
+```
+
+### Publishing/Unpublishing Promotions
+
+```php
+// Publish a promotion
+GET /promos/activa/123
+
+// Unpublish a promotion
+GET /promos/desactiva/123
+```
+
+### Autocomplete Business Search
+
+```javascript
+// jQuery autocomplete example
+$('#business_search').autocomplete({
+    source: '/promos/verlocal',
+    minLength: 2,
+    select: function(event, ui) {
+        $('#promo_locale_id').val(ui.item.id);
+        $('#business_name').val(ui.item.value);
+    }
+});
+```
+
+## Image Processing Details
+
+### Thumbnail Generation
+
+Promotional thumbnails are larger than gallery thumbnails:
+- **Max width**: 450px
+- **Max height**: 280px
+- **Maintains aspect ratio**: Yes
+- **Storage path**: `/webroot/files/promos/thumbnails/`
+- **Use case**: Grid displays, preview cards
+
+### Slider Generation
+
+Wide banner-style images for promotional sliders:
+- **Max width**: 779px
+- **Max height**: 280px
+- **Maintains aspect ratio**: Yes
+- **Storage path**: `/webroot/files/promos/slider/`
+- **Use case**: Homepage banners, promotional carousels
+
+### Image Processing Flow
+
+1. Original image uploaded to `/files/promos/otras/`
+2. SimpleImage library loads original
+3. Resize to thumbnail dimensions (450x280) if needed
+4. Save thumbnail to thumbnails directory
+5. Reload original for slider size
+6. Resize to slider dimensions (779x280) if needed
+7. Save slider image to slider directory
+
+## Comparison: Promos vs Galleries
+
+| Feature | Promos | Galleries |
+|---------|--------|----------|
+| Thumbnail Size | 450x280px | 124x124px |
+| Display Size | 779x280px (slider) | 600x480px (normal) |
+| Image Aspect | Wide banner | Square/portrait |
+| Use Case | Promotional campaigns | Product catalog |
+| Date Fields | fecha_inicio, fecha_fin | fechacre_galeria only |
+| Display Format | Carousel/banner | Grid/list |
+
+## Database Structure
+
+The controller works with the `promos` table:
+- `id_promo`: Primary key
+- `nombre_promo`: Promotion name
+- `descripcion_promo`: Promotion description
+- `precio`: Promotional price
+- `cantidad`: Original quantity
+- `cantidad_existente`: Current stock
+- `prod_vendidos`: Number sold
+- `fecha_inicio`: Start date
+- `fecha_fin`: End date
+- `thumbnails`: Image filename
+- `locale_id_local`: Business location ID
+- `publicar`: Published status (0=unpublished, 1=published)
+- `fechacre_promo`: Creation date
+- `user_id`: Creator user ID
+
+## Inventory Management
+
+Similar to galleries:
+- `cantidad_existente` is set to the initial `cantidad` on creation
+- `prod_vendidos` is initialized to 0
+- Both values reset to initial state on edit (which may not be desired behavior)
+- Values updated by sales system when promo items are purchased
+
+## Known Issues
+
+1. **Edit Function Bug**: The `edit()` function calls `create()` before saving, which may create duplicates instead of updating
+2. **DeleteImg Table Reference**: The `deleteimg()` function references wrong table (galleries instead of promos)
+3. **Inventory Reset on Edit**: Editing a promo resets `prod_vendidos` to 0 and `cantidad_existente` to `cantidad`, losing sales history
+4. **Image Reprocessing**: Every edit reprocesses images even if image wasn't changed
+
+## Best Practices
+
+### Creating Time-Limited Promotions
+
+```php
+$data = [
+    'Promo' => [
+        'nombre_promo' => 'Weekend Special',
+        'fecha_inicio' => date('Y-m-d'), // Today
+        'fecha_fin' => date('Y-m-d', strtotime('+3 days')), // 3 days from now
+        'cantidad' => 100,
+        // ... other fields
+    ]
+];
+```
+
+### Optimal Image Dimensions
+
+For best results, upload promotional images with:
+- **Aspect ratio**: ~2.78:1 (e.g., 779x280)
+- **Minimum dimensions**: 779x280px
+- **Format**: JPG or PNG
+- **File size**: < 2MB for faster processing

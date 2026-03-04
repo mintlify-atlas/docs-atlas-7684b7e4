@@ -1,0 +1,255 @@
+---
+title: 'Authentication'
+description: 'Learn how to log in, manage your account, and handle passwords in Yoneily'
+icon: 'lock'
+---
+
+## Overview
+
+Yoneily uses a secure authentication system to protect user accounts and manage access to the complaint and report management features. This guide covers everything you need to know about logging in, managing your password, and understanding user sessions.
+
+## Logging In
+
+Access the Yoneily system through the login page to begin managing complaints and reports.
+
+<Steps>
+  <Step title="Navigate to Login Page">
+    Open your web browser and go to the Yoneily login page. You'll see fields for your username and password.
+  </Step>
+  
+  <Step title="Enter Your Credentials">
+    Enter your assigned username and password. Make sure to type your password carefully as it is case-sensitive.
+  </Step>
+  
+  <Step title="Submit Login">
+    Click the login button to authenticate. If successful, you'll be redirected to your home dashboard.
+  </Step>
+</Steps>
+
+<Note>
+  If you enter incorrect credentials, you'll see the error message: "El Usuario o el Password no son válidos por favor intenta nuevamente" (The username or password is not valid, please try again).
+</Note>
+
+### How Authentication Works
+
+The system uses CakePHP's Auth component with the following security features:
+
+```php
+// From app_controller.php:15-21
+$this->Auth->loginAction = array('controller' => 'users', 'action' => 'login');
+$this->Auth->loginRedirect = array('controller' => 'users', 'action' => 'home');
+$this->Auth->loginError = 'El Usuario o el Password no son válidos...';
+$this->Auth->authorize = 'controller';
+```
+
+- **Login Action**: Directs all authentication requests to the users controller
+- **Login Redirect**: After successful login, you're sent to your home page
+- **Authorization**: Controller-based authorization checks your permissions for each action
+
+## Logging Out
+
+When you're finished working in the system, it's important to log out properly to protect your account.
+
+<Steps>
+  <Step title="Find the Logout Option">
+    Look for the logout link in your navigation menu or user profile area.
+  </Step>
+  
+  <Step title="Click Logout">
+    Click the logout link. Your session will be immediately terminated.
+  </Step>
+  
+  <Step title="Confirm Logout">
+    You'll see a confirmation message: "Haz cerrado la sesion" (You have closed the session) and be redirected to the login page.
+  </Step>
+</Steps>
+
+### Logout Implementation
+
+```php
+// From users_controller.php:189-194
+function logout() {
+    $this->Session->setFlash('Haz cerrado la sesion');
+    $this->redirect($this->Auth->logout());
+}
+```
+
+The logout process:
+1. Destroys your active session
+2. Clears authentication data
+3. Displays a confirmation message
+4. Redirects you to the login page
+
+## Password Management
+
+### Changing Your Password
+
+For security reasons, you should periodically change your password. Only administrators can initiate password changes for users.
+
+<Steps>
+  <Step title="Access Password Change">
+    An administrator needs to access the user management section and select "Edit Password" for your account.
+  </Step>
+  
+  <Step title="Enter Current Password">
+    You'll need to provide your current password to verify your identity.
+  </Step>
+  
+  <Step title="Enter New Password">
+    Type your new password in the "New Password" field. Choose a strong password with a mix of letters, numbers, and special characters.
+  </Step>
+  
+  <Step title="Confirm New Password">
+    Re-enter your new password in the "Confirm New Password" field to prevent typing errors.
+  </Step>
+  
+  <Step title="Save Changes">
+    Click save to update your password. You'll see the message "Su password ha sido actualizado" (Your password has been updated).
+  </Step>
+</Steps>
+
+### Password Change Security
+
+The system includes multiple security checks during password changes:
+
+```php
+// From users_controller.php:100-112
+$result = $this->User->find('all', array(
+    'fields' => array('User.password'),
+    'conditions' => array(
+        'User.id_usuario' => $id,
+        'User.password' => $this->Auth->password($oldpass)
+    )
+));
+
+if ($newpass == $newpassconfirm) {
+    $this->User->set(array(
+        'password' => $this->Auth->password($newpass)
+    ));
+    $this->User->save();
+}
+```
+
+**Security validations**:
+- Verifies your current password before allowing changes
+- Ensures new password and confirmation match
+- Hashes passwords using secure encryption
+- Never stores passwords in plain text
+
+### Password Requirements
+
+While the system doesn't enforce specific password complexity rules in the code, follow these best practices:
+
+- Use at least 8 characters
+- Mix uppercase and lowercase letters
+- Include numbers
+- Add special characters (!@#$%^&*)
+- Avoid dictionary words or personal information
+- Don't reuse old passwords
+
+## Common Error Messages
+
+<AccordionGroup>
+  <Accordion title="El Usuario o el Password no son válidos">
+    **Problem**: Invalid username or password
+    
+    **Solution**: 
+    - Double-check your username for typos
+    - Verify your password is correct (check Caps Lock)
+    - Contact your administrator if you've forgotten your credentials
+  </Accordion>
+  
+  <Accordion title="Los password no son iguales">
+    **Problem**: New password and confirmation don't match
+    
+    **Solution**: 
+    - Make sure both password fields contain exactly the same text
+    - Watch out for extra spaces
+    - Try typing more carefully or using copy/paste
+  </Accordion>
+  
+  <Accordion title="El password actual no es igual al que colocó">
+    **Problem**: Current password doesn't match records
+    
+    **Solution**: 
+    - Verify you're entering your current password correctly
+    - Contact your administrator if you've forgotten your password
+  </Accordion>
+</AccordionGroup>
+
+## User Registration
+
+New vendor accounts can be registered through a special registration process.
+
+### Vendor Registration Process
+
+<Steps>
+  <Step title="Access Registration Form">
+    Navigate to the vendor registration page (add_vendedor action).
+  </Step>
+  
+  <Step title="Select Location">
+    Choose your business location from the available options.
+  </Step>
+  
+  <Step title="Enter Access Code">
+    Provide the unique access code (codigo_uno) assigned to your location.
+  </Step>
+  
+  <Step title="Complete Profile">
+    Fill in your user profile information and choose a secure password.
+  </Step>
+  
+  <Step title="Submit Registration">
+    Submit the form and wait for confirmation that your account has been created.
+  </Step>
+</Steps>
+
+```php
+// From users_controller.php:34-52
+function add_vendedor() {
+    if (!empty($this->data)) {
+        $local = $this->data['User']['locale_id_local'];
+        $codigo = $this->data['User']['codigo_uno'];
+        
+        if(!empty($local)) {
+            $this->Locale->updateAll(
+                array('Locale.codigo' => "'$codigo'"),
+                array('Locale.id_local' => $local)
+            );
+            $this->data['User']['password'] = Security::hash(
+                $this->data['User']['pass'], null, true
+            );
+            if ($this->User->save($this->data)) {
+                $this->redirect(array('action' => 'registrado'));
+            }
+        }
+    }
+}
+```
+
+## Session Security
+
+Your login session is protected by several security measures:
+
+- **Session Timeout**: Inactive sessions expire automatically
+- **Secure Session Storage**: Session data is encrypted
+- **CSRF Protection**: Prevents cross-site request forgery attacks
+- **Controller Authorization**: Every action checks your permissions
+
+<Warning>
+  Always log out when using shared or public computers. Leaving your session active can allow unauthorized access to your account.
+</Warning>
+
+## Next Steps
+
+Now that you understand authentication, learn about:
+
+<CardGroup cols={2}>
+  <Card title="Permissions" icon="shield-check" href="/guide/permissions">
+    Understand user roles and access control
+  </Card>
+  <Card title="Submitting Complaints" icon="file-circle-exclamation" href="/guide/submitting-complaints">
+    Learn how to create and manage complaints
+  </Card>
+</CardGroup>

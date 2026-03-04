@@ -1,0 +1,487 @@
+---
+title: 'Locales Controller'
+description: 'API reference for the Locales controller that manages business locations, venue registration, and business information in the Yoneily platform'
+---
+
+## Overview
+
+The `LocalesController` manages business locations (locales) in the Yoneily system. It handles venue registration, profile management, image processing for business logos and location maps, and business activation/deactivation. Each locale receives a unique access code for vendor registration.
+
+**Models Used**: `Locale`, `Archivo`, `Category`, `User`, `Group`, `Aco`, `Aro`, `ArosAco`
+
+**Helpers**: `Html`, `Form`, `Javascript`
+
+**External Libraries**: `SimpleImage.php` (vendor library for image processing)
+
+## Authentication & Access Control
+
+```php
+function beforeFilter(){
+    $this->Auth->allow('acceso');
+}
+```
+
+Only the `acceso` action is publicly accessible. All other actions require authentication.
+
+## Image Processing
+
+The controller processes two types of images for each locale:
+
+1. **Business Logo** (`nombre_file`):
+   - Thumbnail: 96x72px (stored in `/files/locales/thumbnails/`)
+   - Slider: 600x480px (stored in `/files/locales/slider/`)
+
+2. **Location Map** (`ubicacion_file`):
+   - Slider size: 600x480px (stored in `/files/locales/slider/`)
+
+## Public Actions
+
+### index()
+
+Lists all business locations with pagination.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+**Behavior**:
+- Displays paginated list of all locales
+- 10 items per page
+- Ordered by status descending (active first)
+- Recursive level 0
+
+**View Variables**:
+- `locales`: Paginated locale records
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:17
+
+```php
+var $paginate = array(
+    'limit' => 10,
+    'order' => array('status' =>'DESC')
+);
+```
+
+---
+
+### view($id)
+
+Views a single business location.
+
+<ParamField path="id" type="integer" required>
+  Locale ID
+</ParamField>
+
+**Returns**: Redirects to index if invalid ID
+
+**View Variables**:
+- `locale`: Locale record
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:23
+
+---
+
+### add()
+
+Registers a new business location with automatic code generation and image processing.
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['Locale']" type="array" required>
+  Locale data including:
+  - rif: Tax ID (must be unique)
+  - nombre_empresa: Business name
+  - encargado_nombre: Manager first name
+  - encargado_apellido: Manager last name
+  - correo: Email address
+  - telefono: Phone number
+  - direccion: Address
+  - nombre_file: Business logo (uploaded file)
+  - ubicacion_file: Location map (uploaded file)
+</ParamField>
+
+**View Variables**:
+- `users`: User list
+
+**Behavior**:
+1. Generates unique 6-character access code using MD5
+2. Validates RIF uniqueness
+3. Saves locale record
+4. Processes business logo:
+   - Creates 96x72 thumbnail
+   - Creates 600x480 slider image
+5. Processes location map:
+   - Creates 600x480 slider image
+6. Shows success/error flash message
+
+**Access Code Generation**:
+```php
+$cadena = "abcdefghijklmnopqrstuvwxyz";
+$cadena = md5($cadena);
+srand((double)microtime()*1000000);
+$inicio = rand(0,27);
+$codigo = substr($cadena,$inicio,6);
+$this->data['Locale']['codigo'] = $codigo;
+```
+
+**Validation**:
+- Checks if RIF already exists in database
+- If RIF exists, shows error and doesn't save
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:31
+
+---
+
+### edit($id)
+
+Edits an existing business location.
+
+<ParamField path="id" type="integer" required>
+  Locale ID to edit
+</ParamField>
+
+<ParamField path="layout" type="string" default="admin">
+  Uses admin layout
+</ParamField>
+
+<ParamField body="this->data['Locale']" type="array">
+  Updated locale data
+</ParamField>
+
+**Behavior**:
+- Validates locale ID
+- If no POST data, loads existing locale data
+- If POST data, saves updates
+- Shows success/error flash message
+- Redirects to index
+
+**Note**: This simplified edit doesn't reprocess images. Only updates database fields.
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:134
+
+---
+
+### delete($id)
+
+Deletes a business location and all associated records.
+
+<ParamField path="id" type="integer" required>
+  Locale ID to delete
+</ParamField>
+
+**Behavior**:
+- Validates locale ID
+- Uses deleteAll() to remove locale
+- Shows success/error flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:159
+
+```php
+if ($this->Locale->deleteAll("Locale.id_local=".$id)) {
+    $this->Session->setFlash(__('Se ha eliminado el registro exitosamente.', null), 
+        'default', array('class' => 'flash_good'));
+}
+```
+
+---
+
+### deleteimg($id, $idfile)
+
+Deletes an image associated with a locale (legacy function, uses gallery table references).
+
+<ParamField path="id" type="integer" required>
+  Locale ID
+</ParamField>
+
+<ParamField path="idfile" type="integer" required>
+  File ID to delete
+</ParamField>
+
+**Note**: This function appears to have incorrect table references (uses galleries table instead of locales)
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:172
+
+---
+
+### desactiva($id)
+
+Deactivates a business location.
+
+<ParamField path="id" type="integer" required>
+  Locale ID
+</ParamField>
+
+**Behavior**:
+- Sets `Locale.status` to 0 (inactive)
+- Shows flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:188
+
+```php
+$this->Locale->updateAll(
+    array('Locale.status' => '0'), 
+    array('Locale.id_local' => $id)
+)
+```
+
+---
+
+### activa($id)
+
+Activates a business location.
+
+<ParamField path="id" type="integer" required>
+  Locale ID
+</ParamField>
+
+**Behavior**:
+- Sets `Locale.status` to 1 (active)
+- Shows flash message
+- Redirects to index
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:203
+
+---
+
+### pdf($id)
+
+Generates a PDF report for a single business location.
+
+<ParamField path="id" type="integer" required>
+  Locale ID
+</ParamField>
+
+<ParamField path="layout" type="string" default="pdf">
+  Uses PDF layout
+</ParamField>
+
+**Behavior**:
+- Disables debug output
+- Finds locale by ID
+- Renders PDF view
+
+**View Variables**:
+- `locales`: Locale record(s)
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:218
+
+```php
+Configure::write('debug', 0);
+$locales = $this->Locale->find('all',
+    array('conditions' => array('Locale.id_local'=>$id)));
+```
+
+---
+
+### pdf_completo()
+
+Generates a complete PDF report of all business locations.
+
+<ParamField path="layout" type="string" default="pdf">
+  Uses PDF layout
+</ParamField>
+
+**Behavior**:
+- Disables debug output
+- Retrieves all locales
+- Renders PDF view
+
+**View Variables**:
+- `locales`: All locale records
+
+**Access**: Requires authentication
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:224
+
+---
+
+### acceso()
+
+Business login/authentication endpoint (legacy, not fully implemented).
+
+<ParamField path="layout" type="string" default="ajax">
+  Uses AJAX layout
+</ParamField>
+
+<ParamField body="this->data['Locale']['username']" type="string" required>
+  Email address
+</ParamField>
+
+<ParamField body="this->data['Locale']['password']" type="string" required>
+  Password (stored in plain text - security issue)
+</ParamField>
+
+**View Variables**:
+- `lo`: Username/email
+- `pa`: Password
+
+**Behavior**:
+- Searches for locale with matching email and password
+- If found, redirects to users/index
+- If not found, does nothing (no error message)
+
+**Security Warning**: This function stores and compares passwords in plain text, which is a serious security vulnerability.
+
+**Access**: Public (allowed action)
+
+**Source Reference**: /home/daytona/workspace/source/sistema_magdaleno/app/controllers/locales_controller.php:230
+
+```php
+$reglogin = $this->Locale->find('all', array(
+    'conditions'=>array(
+        'Locale.correo'=>$corre,
+        'Locale.password'=>$pass  // Plain text comparison!
+    )
+));
+```
+
+## Usage Examples
+
+### Registering a New Business
+
+```php
+// POST to /locales/add
+$data = [
+    'Locale' => [
+        'rif' => 'J-12345678-9',
+        'nombre_empresa' => 'Example Store',
+        'encargado_nombre' => 'John',
+        'encargado_apellido' => 'Doe',
+        'correo' => 'contact@example.com',
+        'telefono' => '555-1234',
+        'direccion' => '123 Main St',
+        'nombre_file' => [/* uploaded logo file */],
+        'ubicacion_file' => [/* uploaded map file */]
+    ]
+];
+// Auto-generates codigo like: 'a3f5b2'
+```
+
+### Activating/Deactivating a Business
+
+```php
+// Activate
+GET /locales/activa/123
+
+// Deactivate
+GET /locales/desactiva/123
+```
+
+### Generating Reports
+
+```php
+// Single business PDF
+GET /locales/pdf/123
+
+// All businesses PDF
+GET /locales/pdf_completo
+```
+
+## Image Processing Details
+
+### Business Logo Processing
+
+**Original Storage**: `/webroot/files/locales/otras/`
+
+**Thumbnail** (96x72):
+- Max width: 96px
+- Max height: 72px
+- Maintains aspect ratio
+- Storage: `/webroot/files/locales/thumbnails/`
+
+**Slider** (600x480):
+- Max width: 600px
+- Max height: 480px
+- Maintains aspect ratio
+- Storage: `/webroot/files/locales/slider/`
+
+### Location Map Processing
+
+**Original Storage**: `/webroot/files/locales/otras/`
+
+**Slider Size** (600x480):
+- Max width: 600px
+- Max height: 480px
+- Maintains aspect ratio
+- Storage: `/webroot/files/locales/slider/`
+
+### Image Processing Code Example
+
+```php
+$image = new SimpleImage();
+$image->load($original_file_path);
+if($image->getWidth() > 96){
+    $image->resizeToWidth(96);
+}
+if($image->getHeight() > 72){
+    $image->resizeToHeight(72);
+}
+$image->save($conversion);
+```
+
+## Access Code System
+
+Each locale receives a unique 6-character code upon registration:
+
+**Generation Method**:
+1. Start with alphabet string
+2. Hash with MD5
+3. Use microsecond-seeded random number
+4. Extract 6 characters from random position
+5. Store in `Locale.codigo` field
+
+**Usage**:
+- Vendors use this code during registration
+- Links vendor accounts to business locations
+- Referenced in UsersController::add_vendedor()
+- Can be validated via UsersController::consulta_codigo()
+
+## Database Structure
+
+The controller works with the `locales` table:
+- `id_local`: Primary key
+- `rif`: Tax ID (unique)
+- `nombre_empresa`: Business name
+- `encargado_nombre`: Manager first name
+- `encargado_apellido`: Manager last name
+- `correo`: Email address
+- `password`: Password (plain text - security issue)
+- `telefono`: Phone number
+- `direccion`: Address
+- `nombre_file`: Logo filename
+- `ubicacion_file`: Location map filename
+- `codigo`: Access code for vendor registration
+- `status`: Active status (0=inactive, 1=active)
+
+## Security Considerations
+
+**Warning**: The `acceso()` function has critical security vulnerabilities:
+
+1. **Plain Text Passwords**: Passwords stored and compared without hashing
+2. **No Session Management**: Doesn't properly establish authenticated session
+3. **No CSRF Protection**: No token validation
+4. **Incomplete Implementation**: Redirects without setting session variables
+
+**Recommendation**: This function should be refactored to use CakePHP's Auth component with proper password hashing (Security::hash or bcrypt).
